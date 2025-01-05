@@ -28,6 +28,7 @@ public:
             return std::strong_ordering::greater;
         }
     }
+
     bool operator==(const Fraction &other) const = default;
 
 private:
