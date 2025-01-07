@@ -1,5 +1,5 @@
 #ifndef FRACTION_HPP
-#define FRACTION_CPP
+#define FRACTION_HPP
 
 #include <compare>
 
