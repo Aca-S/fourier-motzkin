@@ -1,5 +1,6 @@
 #include "fourier_motzkin.hpp"
 #include "fraction.hpp"
+#include "ordered_field_fol_ast.hpp"
 
 #include <iostream>
 

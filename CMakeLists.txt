@@ -8,4 +8,6 @@ add_executable(fourier_motzkin
     fourier_motzkin.hpp
     fraction.cpp
     fraction.hpp
+    ordered_field_fol_ast.cpp
+    ordered_field_fol_ast.hpp
 )
