@@ -1,4 +1,5 @@
 #include "fourier_motzkin.hpp"
+#include "fraction.hpp"
 
 #include <iostream>
 
@@ -36,17 +37,29 @@ int main(int argc, char *argv[])
     //     {c1, c2}
     // };
 
-    Constraint c1 {
-        {Fraction {1}, Fraction {1}}, Constraint::Relation::GT, Fraction {8}
+    Constraint<Fraction> c1 {
+        {Fraction {1}, Fraction {1}}, Constraint<Fraction>::Relation::GT, Fraction {8}
     };
 
-    Constraint c2 {
-        {Fraction {1}, Fraction {1}}, Constraint::Relation::LT, Fraction {7}
+    Constraint<Fraction> c2 {
+        {Fraction {1}, Fraction {1}}, Constraint<Fraction>::Relation::LT, Fraction {7}
     };
 
-    ConstraintConjuction cc {
+    ConstraintConjuction<Fraction> cc {
         {c1, c2}
     };
+
+    // Constraint<double> c1 {
+    //     {1, 1}, Constraint<double>::Relation::GT, 8
+    // };
+    //
+    // Constraint<double> c2 {
+    //     {1, 1}, Constraint<double>::Relation::LT, 7
+    // };
+    //
+    // ConstraintConjuction<double> cc {
+    //     {c1, c2}
+    // };
 
     const auto is_sat = cc.is_satisfiable();
     std::cout << "Is satisfiable: " << (is_sat ? "true" : "false") << std::endl;

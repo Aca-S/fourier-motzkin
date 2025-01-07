@@ -5,8 +5,7 @@ set(CMAKE_CXX_STANDARD 20)
 
 add_executable(fourier_motzkin
     main.cpp
+    fourier_motzkin.hpp
     fraction.cpp
     fraction.hpp
-    fourier_motzkin.cpp
-    fourier_motzkin.hpp
 )
