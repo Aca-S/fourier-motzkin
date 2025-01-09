@@ -1,5 +1,5 @@
-#ifndef ORDERED_FIELD_FOL_AST_HPP
-#define ORDERED_FIELD_FOL_AST_HPP
+#ifndef FOL_AST_HPP
+#define FOL_AST_HPP
 
 #include "fraction.hpp"
 
@@ -130,4 +130,4 @@ template <typename... Ts> struct overloaded : Ts...
 
 template <typename... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
-#endif // ORDERED_FIELD_FOL_AST_HPP
+#endif // FOL_AST_HPP

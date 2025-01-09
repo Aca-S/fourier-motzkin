@@ -1,6 +1,6 @@
 #include "fourier_motzkin.hpp"
 #include "fraction.hpp"
-#include "ordered_field_fol_ast.hpp"
+#include "fol_driver.hpp"
 
 #include <iostream>
 
@@ -64,6 +64,9 @@ int main(int argc, char *argv[])
 
     const auto is_sat = cc.is_satisfiable();
     std::cout << "Is satisfiable: " << (is_sat ? "true" : "false") << std::endl;
+
+    FOLDriver driver;
+    const auto formula = driver.parse("");
 
     return 0;
 }
