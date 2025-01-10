@@ -80,6 +80,11 @@ struct AtomicFormula : public std::variant<LogicalConstant, EqualTo, LessThan, L
 
 struct Formula;
 
+struct AtomicFormulaWrapper
+{
+    std::unique_ptr<AtomicFormula> atomic_formula;
+};
+
 struct Negation
 {
     std::unique_ptr<Formula> operand;
@@ -107,19 +112,19 @@ struct Equivalence
 
 struct UniversalQuantification
 {
-    std::unique_ptr<Variable> variable;
+    char var_symbol;
     std::unique_ptr<Formula> formula;
 };
 
 struct ExistentialQuantification
 {
-    std::unique_ptr<Variable> variable;
+    char var_symbol;
     std::unique_ptr<Formula> formula;
 };
 
-struct Formula : public std::variant<AtomicFormula, Conjuction, Disjunction, Implication, Equivalence, UniversalQuantification, ExistentialQuantification>
+struct Formula : public std::variant<AtomicFormulaWrapper, Negation, Conjuction, Disjunction, Implication, Equivalence, UniversalQuantification, ExistentialQuantification>
 {
-    using variant<AtomicFormula, Conjuction, Disjunction, Implication, Equivalence, UniversalQuantification, ExistentialQuantification>::variant;
+    using variant<AtomicFormulaWrapper, Negation, Conjuction, Disjunction, Implication, Equivalence, UniversalQuantification, ExistentialQuantification>::variant;
 };
 
 // For overloaded lambdas...

@@ -5,7 +5,9 @@
 
 %code requires {
     class FOLDriver;
-    class Formula;;
+    class Term;
+    class AtomicFormula;
+    class Formula;
     #include <memory>
 }
 
@@ -15,12 +17,62 @@
     #include "fol_driver.hpp"
 }
 
-%start formula
+%token <int> INT_T
+%token <char> VAR_T
+%token LEQ_T GEQ_T TRUE_T FALSE_T IMPL_T EQUI_T
+
+%left '!' '?' '.'
+%right EQUI_T
+%right IMPL_T
+%left '|'
+%left '&'
+%left '~'
+%left '=' '<' '>' LEQ_T GEQ_T
+%left '+' '-'
+%left '*' '/'
+
+%nterm <std::unique_ptr<Term>> term
+%nterm <std::unique_ptr<AtomicFormula>> atomic_formula
+%nterm <std::unique_ptr<Formula>> formula
+
+%start complete_formula
 
 %%
 
+complete_formula:
+    formula { driver.m_ast = std::move($1); }
+;
+
 formula:
-    { driver.m_ast = nullptr; }
+    '~' formula { $$ = std::make_unique<Formula>(Negation(std::move($2))); }
+|   formula '&' formula { $$ = std::make_unique<Formula>(Conjuction(std::move($1), std::move($3))); }
+|   formula '|' formula { $$ = std::make_unique<Formula>(Disjunction(std::move($1), std::move($3))); }
+|   formula IMPL_T formula { $$ = std::make_unique<Formula>(Implication(std::move($1), std::move($3))); }
+|   formula EQUI_T formula { $$ = std::make_unique<Formula>(Equivalence(std::move($1), std::move($3))); }
+|   '!' VAR_T '.' formula { $$ = std::make_unique<Formula>(UniversalQuantification($2, std::move($4))); }
+|   '?' VAR_T '.' formula { $$ = std::make_unique<Formula>(ExistentialQuantification($2, std::move($4))); }
+|   '(' formula ')' { $$ = std::move($2); }
+|   atomic_formula { $$ = std::make_unique<Formula>(AtomicFormulaWrapper(std::move($1))); }
+;
+
+atomic_formula:
+    term '=' term { $$ = std::make_unique<AtomicFormula>(EqualTo(std::move($1), std::move($3))); }
+|   term '<' term { $$ = std::make_unique<AtomicFormula>(LessThan(std::move($1), std::move($3))); }
+|   term '>' term { $$ = std::make_unique<AtomicFormula>(GreaterThan(std::move($1), std::move($3))); }
+|   term LEQ_T term { $$ = std::make_unique<AtomicFormula>(LessOrEqualTo(std::move($1), std::move($3))); }
+|   term GEQ_T term { $$ = std::make_unique<AtomicFormula>(GreaterOrEqualTo(std::move($1), std::move($3))); }
+|   TRUE_T { $$ = std::make_unique<AtomicFormula>(LogicalConstant(true)); }
+|   FALSE_T { $$ = std::make_unique<AtomicFormula>(LogicalConstant(false)); }
+;
+
+term:
+    term '+' term { $$ = std::make_unique<Term>(Addition(std::move($1), std::move($3))); }
+|   term '-' term { $$ = std::make_unique<Term>(Subtraction(std::move($1), std::move($3))); }
+|   term '*' term { $$ = std::make_unique<Term>(Multiplication(std::move($1), std::move($3))); }
+|   term '/' term { $$ = std::make_unique<Term>(Division(std::move($1), std::move($3))); }
+|   '(' term ')' { $$ = std::move($2); }
+|   VAR_T { $$ = std::make_unique<Term>(Variable($1)); }
+|   INT_T { $$ = std::make_unique<Term>(RationalNumber(Fraction($1))); }
 ;
 
 %%
