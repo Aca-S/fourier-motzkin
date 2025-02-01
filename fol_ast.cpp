@@ -89,6 +89,9 @@ std::string atomic_formula_to_string(const AtomicFormula &atomic_formula)
             },
             [](const GreaterOrEqualTo &atomic_formula) {
                 return term_to_string(*atomic_formula.left) + ">=" + term_to_string(*atomic_formula.right);
+            },
+            [](const NotEqualTo &atomic_formula) {
+                return term_to_string(*atomic_formula.left) + "!=" + term_to_string(*atomic_formula.right);
             }
         }, atomic_formula
     );

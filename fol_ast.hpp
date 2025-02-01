@@ -73,9 +73,14 @@ struct GreaterOrEqualTo
     std::unique_ptr<Term> left, right;
 };
 
-struct AtomicFormula : public std::variant<LogicalConstant, EqualTo, LessThan, LessOrEqualTo, GreaterThan, GreaterOrEqualTo>
+struct NotEqualTo
 {
-    using variant<LogicalConstant, EqualTo, LessThan, LessOrEqualTo, GreaterThan, GreaterOrEqualTo>::variant;
+    std::unique_ptr<Term> left, right;
+};
+
+struct AtomicFormula : public std::variant<LogicalConstant, EqualTo, LessThan, LessOrEqualTo, GreaterThan, GreaterOrEqualTo, NotEqualTo>
+{
+    using variant<LogicalConstant, EqualTo, LessThan, LessOrEqualTo, GreaterThan, GreaterOrEqualTo, NotEqualTo>::variant;
 };
 
 struct Formula;

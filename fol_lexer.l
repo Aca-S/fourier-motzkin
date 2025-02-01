@@ -35,6 +35,10 @@
     return yy::parser::make_GEQ_T();
 }
 
+"!=" {
+    return yy::parser::make_NEQ_T();
+}
+
 [~&\|!\?\.] {
     return *yytext;
 }

@@ -19,7 +19,7 @@
 
 %token <int> INT_T
 %token <char> VAR_T
-%token LEQ_T GEQ_T TRUE_T FALSE_T IMPL_T EQUI_T
+%token LEQ_T GEQ_T NEQ_T TRUE_T FALSE_T IMPL_T EQUI_T
 
 %left '!' '?' '.'
 %right EQUI_T
@@ -27,7 +27,7 @@
 %left '|'
 %left '&'
 %left '~'
-%left '=' '<' '>' LEQ_T GEQ_T
+%left '=' '<' '>' LEQ_T GEQ_T NEQ_T
 %left '+' '-'
 %left '*' '/'
 
@@ -61,6 +61,7 @@ atomic_formula:
 |   term '>' term { $$ = std::make_unique<AtomicFormula>(GreaterThan(std::move($1), std::move($3))); }
 |   term LEQ_T term { $$ = std::make_unique<AtomicFormula>(LessOrEqualTo(std::move($1), std::move($3))); }
 |   term GEQ_T term { $$ = std::make_unique<AtomicFormula>(GreaterOrEqualTo(std::move($1), std::move($3))); }
+|   term NEQ_T term { $$ = std::make_unique<AtomicFormula>(NotEqualTo(std::move($1), std::move($3))); }
 |   TRUE_T { $$ = std::make_unique<AtomicFormula>(LogicalConstant(true)); }
 |   FALSE_T { $$ = std::make_unique<AtomicFormula>(LogicalConstant(false)); }
 ;
