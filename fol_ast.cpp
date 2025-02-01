@@ -171,3 +171,61 @@ std::string formula_to_string(const Formula &formula)
         }, formula
     );
 }
+
+void process_inequalities(Formula &formula)
+{
+    std::visit(
+        overloaded{
+            [&formula](const AtomicFormulaWrapper &afw) {
+                auto &constraint = *afw.atomic_formula;
+                if (auto *leq = std::get_if<LessOrEqualTo>(&constraint)) {
+                    auto lt = std::make_shared<AtomicFormula>(LessThan(leq->left, leq->right));
+                    auto eq = std::make_shared<AtomicFormula>(EqualTo(leq->left, leq->right));
+                    formula = Disjunction(
+                        std::make_shared<Formula>(AtomicFormulaWrapper(lt)),
+                        std::make_shared<Formula>(AtomicFormulaWrapper(eq))
+                    );
+                } else if (std::holds_alternative<GreaterOrEqualTo>(constraint)) {
+                    auto gt = std::make_shared<AtomicFormula>(GreaterThan(leq->left, leq->right));
+                    auto eq = std::make_shared<AtomicFormula>(EqualTo(leq->left, leq->right));
+                    formula = Disjunction(
+                        std::make_shared<Formula>(AtomicFormulaWrapper(gt)),
+                        std::make_shared<Formula>(AtomicFormulaWrapper(eq))
+                    );
+                } else if (std::holds_alternative<NotEqualTo>(constraint)) {
+                    auto lt = std::make_shared<AtomicFormula>(LessThan(leq->left, leq->right));
+                    auto gt = std::make_shared<AtomicFormula>(GreaterThan(leq->left, leq->right));
+                    formula = Disjunction(
+                        std::make_shared<Formula>(AtomicFormulaWrapper(lt)),
+                        std::make_shared<Formula>(AtomicFormulaWrapper(gt))
+                    );
+                }
+            },
+            [](const Negation &neg) {
+                process_inequalities(*neg.operand);
+            },
+            [](const Conjuction &con) {
+                process_inequalities(*con.left);
+                process_inequalities(*con.right);
+            },
+            [](const Disjunction &dis) {
+                process_inequalities(*dis.left);
+                process_inequalities(*dis.right);
+            },
+            [](const Implication &impl) {
+                process_inequalities(*impl.left);
+                process_inequalities(*impl.right);
+            },
+            [](const Equivalence &equi) {
+                process_inequalities(*equi.left);
+                process_inequalities(*equi.right);
+            },
+            [](const UniversalQuantification &uni) {
+                process_inequalities(*uni.formula);
+            },
+            [](const ExistentialQuantification &exi) {
+                process_inequalities(*exi.formula);
+            }
+        }, formula
+    );
+}

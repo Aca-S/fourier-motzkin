@@ -20,22 +20,22 @@ struct Variable
 
 struct Addition
 {
-    std::unique_ptr<Term> left, right;
+    std::shared_ptr<Term> left, right;
 };
 
 struct Subtraction
 {
-    std::unique_ptr<Term> left, right;
+    std::shared_ptr<Term> left, right;
 };
 
 struct Multiplication
 {
-    std::unique_ptr<Term> left, right;
+    std::shared_ptr<Term> left, right;
 };
 
 struct Division
 {
-    std::unique_ptr<Term> left, right;
+    std::shared_ptr<Term> left, right;
 };
 
 struct Term : public std::variant<RationalNumber, Variable, Addition, Subtraction, Multiplication, Division>
@@ -50,32 +50,32 @@ struct LogicalConstant
 
 struct EqualTo
 {
-    std::unique_ptr<Term> left, right;
+    std::shared_ptr<Term> left, right;
 };
 
 struct LessThan
 {
-    std::unique_ptr<Term> left, right;
+    std::shared_ptr<Term> left, right;
 };
 
 struct LessOrEqualTo
 {
-    std::unique_ptr<Term> left, right;
+    std::shared_ptr<Term> left, right;
 };
 
 struct GreaterThan
 {
-    std::unique_ptr<Term> left, right;
+    std::shared_ptr<Term> left, right;
 };
 
 struct GreaterOrEqualTo
 {
-    std::unique_ptr<Term> left, right;
+    std::shared_ptr<Term> left, right;
 };
 
 struct NotEqualTo
 {
-    std::unique_ptr<Term> left, right;
+    std::shared_ptr<Term> left, right;
 };
 
 struct AtomicFormula : public std::variant<LogicalConstant, EqualTo, LessThan, LessOrEqualTo, GreaterThan, GreaterOrEqualTo, NotEqualTo>
@@ -87,44 +87,44 @@ struct Formula;
 
 struct AtomicFormulaWrapper
 {
-    std::unique_ptr<AtomicFormula> atomic_formula;
+    std::shared_ptr<AtomicFormula> atomic_formula;
 };
 
 struct Negation
 {
-    std::unique_ptr<Formula> operand;
+    std::shared_ptr<Formula> operand;
 };
 
 struct Conjuction
 {
-    std::unique_ptr<Formula> left, right;
+    std::shared_ptr<Formula> left, right;
 };
 
 struct Disjunction
 {
-    std::unique_ptr<Formula> left, right;
+    std::shared_ptr<Formula> left, right;
 };
 
 struct Implication
 {
-    std::unique_ptr<Formula> left, right;
+    std::shared_ptr<Formula> left, right;
 };
 
 struct Equivalence
 {
-    std::unique_ptr<Formula> left, right;
+    std::shared_ptr<Formula> left, right;
 };
 
 struct UniversalQuantification
 {
     char var_symbol;
-    std::unique_ptr<Formula> formula;
+    std::shared_ptr<Formula> formula;
 };
 
 struct ExistentialQuantification
 {
     char var_symbol;
-    std::unique_ptr<Formula> formula;
+    std::shared_ptr<Formula> formula;
 };
 
 struct Formula : public std::variant<AtomicFormulaWrapper, Negation, Conjuction, Disjunction, Implication, Equivalence, UniversalQuantification, ExistentialQuantification>
@@ -141,5 +141,9 @@ template <typename... Ts> struct overloaded : Ts...
 template <typename... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 std::string formula_to_string(const Formula &formula);
+
+// Removes occurrences of <=, >= and != in the formula by transforming
+// them into disjunctions of <, > and =.
+void process_inequalities(Formula &formula);
 
 #endif // FOL_AST_HPP

@@ -1,6 +1,6 @@
 #include "fol_driver.hpp"
 
-std::unique_ptr<Formula> FOLDriver::parse(const std::string &formula)
+std::shared_ptr<Formula> FOLDriver::parse(const std::string &formula)
 {
     string_scan_init(formula);
     yy::parser parser(*this);

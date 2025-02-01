@@ -12,7 +12,7 @@ class FOLDriver
     friend class yy::parser;
 
 public:
-    std::unique_ptr<Formula> parse(const std::string &formula);
+    std::shared_ptr<Formula> parse(const std::string &formula);
 
 private:
     // Implemented in the lexer file - alternatively,
@@ -20,7 +20,7 @@ private:
     void string_scan_init(const std::string &formula);
     void string_scan_deinit();
 
-    std::unique_ptr<Formula> m_ast;
+    std::shared_ptr<Formula> m_ast;
 };
 
 // By default, yylex's signature is int yylex(void),
