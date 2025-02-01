@@ -188,16 +188,16 @@ void process_inequalities(Formula &formula)
                         std::make_shared<Formula>(AtomWrapper(lt)),
                         std::make_shared<Formula>(AtomWrapper(eq))
                     );
-                } else if (std::holds_alternative<GreaterOrEqualTo>(constraint)) {
-                    auto gt = std::make_shared<Atom>(GreaterThan(leq->left, leq->right));
-                    auto eq = std::make_shared<Atom>(EqualTo(leq->left, leq->right));
+                } else if (auto *geq = std::get_if<GreaterOrEqualTo>(&constraint)) {
+                    auto gt = std::make_shared<Atom>(GreaterThan(geq->left, geq->right));
+                    auto eq = std::make_shared<Atom>(EqualTo(geq->left, geq->right));
                     formula = Disjunction(
                         std::make_shared<Formula>(AtomWrapper(gt)),
                         std::make_shared<Formula>(AtomWrapper(eq))
                     );
-                } else if (std::holds_alternative<NotEqualTo>(constraint)) {
-                    auto lt = std::make_shared<Atom>(LessThan(leq->left, leq->right));
-                    auto gt = std::make_shared<Atom>(GreaterThan(leq->left, leq->right));
+                } else if (auto *neq = std::get_if<NotEqualTo>(&constraint)) {
+                    auto lt = std::make_shared<Atom>(LessThan(neq->left, neq->right));
+                    auto gt = std::make_shared<Atom>(GreaterThan(neq->left, neq->right));
                     formula = Disjunction(
                         std::make_shared<Formula>(AtomWrapper(lt)),
                         std::make_shared<Formula>(AtomWrapper(gt))
@@ -235,3 +235,43 @@ void process_inequalities(Formula &formula)
         }, formula
     );
 }
+
+void eliminate_constants(Formula &formula)
+{
+    std::visit(
+        overloaded{
+            [](const AtomWrapper &node) {
+
+            },
+            [](const LogicConstant &node) {
+
+            },
+            [](const Negation &node) {
+                eliminate_constants(*node.operand);
+            },
+            [](const Conjuction &node) {
+                eliminate_constants(*node.left);
+                eliminate_constants(*node.right);
+            },
+            [](const Disjunction &node) {
+                eliminate_constants(*node.left);
+                eliminate_constants(*node.right);
+            },
+            [](const Implication &node) {
+                eliminate_constants(*node.left);
+                eliminate_constants(*node.right);
+            },
+            [](const Equivalence &node) {
+                eliminate_constants(*node.left);
+                eliminate_constants(*node.right);
+            },
+            [](const UniversalQuantification &node) {
+                eliminate_constants(*node.formula);
+            },
+            [](const ExistentialQuantification &node) {
+                eliminate_constants(*node.formula);
+            }
+        }, formula
+    );
+}
+

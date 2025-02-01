@@ -70,6 +70,7 @@ int main(int argc, char *argv[])
     if (formula) {
         std::cout << "Formula is valid" << std::endl;
         process_inequalities(*formula);
+        eliminate_constants(*formula);
         std::cout << formula_to_string(*formula) << std::endl;
     } else {
         std::cout << "Formula is invalid" << std::endl;
