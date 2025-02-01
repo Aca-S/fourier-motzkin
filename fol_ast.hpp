@@ -43,11 +43,6 @@ struct Term : public std::variant<RationalNumber, Variable, Addition, Subtractio
     using variant<RationalNumber, Variable, Addition, Subtraction, Multiplication, Division>::variant;
 };
 
-struct LogicalConstant
-{
-    bool value;
-};
-
 struct EqualTo
 {
     std::shared_ptr<Term> left, right;
@@ -78,16 +73,21 @@ struct NotEqualTo
     std::shared_ptr<Term> left, right;
 };
 
-struct AtomicFormula : public std::variant<LogicalConstant, EqualTo, LessThan, LessOrEqualTo, GreaterThan, GreaterOrEqualTo, NotEqualTo>
+struct Atom : public std::variant<EqualTo, LessThan, LessOrEqualTo, GreaterThan, GreaterOrEqualTo, NotEqualTo>
 {
-    using variant<LogicalConstant, EqualTo, LessThan, LessOrEqualTo, GreaterThan, GreaterOrEqualTo, NotEqualTo>::variant;
+    using variant<EqualTo, LessThan, LessOrEqualTo, GreaterThan, GreaterOrEqualTo, NotEqualTo>::variant;
 };
 
 struct Formula;
 
-struct AtomicFormulaWrapper
+struct AtomWrapper
 {
-    std::shared_ptr<AtomicFormula> atomic_formula;
+    std::shared_ptr<Atom> atom;
+};
+
+struct LogicConstant
+{
+    bool value;
 };
 
 struct Negation
@@ -127,9 +127,9 @@ struct ExistentialQuantification
     std::shared_ptr<Formula> formula;
 };
 
-struct Formula : public std::variant<AtomicFormulaWrapper, Negation, Conjuction, Disjunction, Implication, Equivalence, UniversalQuantification, ExistentialQuantification>
+struct Formula : public std::variant<AtomWrapper, LogicConstant, Negation, Conjuction, Disjunction, Implication, Equivalence, UniversalQuantification, ExistentialQuantification>
 {
-    using variant<AtomicFormulaWrapper, Negation, Conjuction, Disjunction, Implication, Equivalence, UniversalQuantification, ExistentialQuantification>::variant;
+    using variant<AtomWrapper, LogicConstant, Negation, Conjuction, Disjunction, Implication, Equivalence, UniversalQuantification, ExistentialQuantification>::variant;
 };
 
 // For overloaded lambdas...

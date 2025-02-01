@@ -7,22 +7,22 @@ unsigned precedence(const Term &term)
 {
     return std::visit(
         overloaded{
-            [](const RationalNumber &rn) {
+            [](const RationalNumber &node) {
                 return 2;
             },
-            [](const Variable &var) {
+            [](const Variable &node) {
                 return 2;
             },
-            [](const Addition &add) {
+            [](const Addition &node) {
                 return 0;
             },
-            [](const Subtraction &sub) {
+            [](const Subtraction &node) {
                 return 0;
             },
-            [](const Multiplication &mul) {
+            [](const Multiplication &node) {
                 return 1;
             },
-            [](const Division &div) {
+            [](const Division &node) {
                 return 1;
             }
         }, term
@@ -44,56 +44,53 @@ std::string term_to_string(const Term &term)
 {
     return std::visit(
         overloaded{
-            [](const RationalNumber &rn) {
-                const auto num = rn.value.get_numerator();
-                const auto den = rn.value.get_denominator();
+            [](const RationalNumber &node) {
+                const auto num = node.value.get_numerator();
+                const auto den = node.value.get_denominator();
                 return std::to_string(num) + (den == 1 ? "" : "/" + std::to_string(den));
             },
-            [](const Variable &var) {
-                return std::string(1, var.symbol);
+            [](const Variable &node) {
+                return std::string(1, node.symbol);
             },
-            [&term](const Addition &add) {
-                return term_to_string(*add.left, term) + "+" + term_to_string(*add.right, term);
+            [&term](const Addition &node) {
+                return term_to_string(*node.left, term) + "+" + term_to_string(*node.right, term);
             },
-            [&term](const Subtraction &sub) {
-                return term_to_string(*sub.left, term) + "-" + term_to_string(*sub.right, term);
+            [&term](const Subtraction &node) {
+                return term_to_string(*node.left, term) + "-" + term_to_string(*node.right, term);
             },
-            [&term](const Multiplication &mul) {
-                return term_to_string(*mul.left, term) + "*" + term_to_string(*mul.right, term);
+            [&term](const Multiplication &node) {
+                return term_to_string(*node.left, term) + "*" + term_to_string(*node.right, term);
             },
-            [&term](const Division &div) {
-                return term_to_string(*div.left, term) + "/" + term_to_string(*div.right, term);
+            [&term](const Division &node) {
+                return term_to_string(*node.left, term) + "/" + term_to_string(*node.right, term);
             }
         }, term
     );
 }
 
-std::string atomic_formula_to_string(const AtomicFormula &atomic_formula)
+std::string atomic_formula_to_string(const Atom &atom)
 {
     return std::visit(
         overloaded{
-            [](const LogicalConstant &atomic_formula) {
-                return atomic_formula.value ? std::string("T") : std::string("F");
+            [](const EqualTo &node) {
+                return term_to_string(*node.left) + "=" + term_to_string(*node.right);
             },
-            [](const EqualTo &atomic_formula) {
-                return term_to_string(*atomic_formula.left) + "=" + term_to_string(*atomic_formula.right);
+            [](const LessThan &node) {
+                return term_to_string(*node.left) + "<" + term_to_string(*node.right);
             },
-            [](const LessThan &atomic_formula) {
-                return term_to_string(*atomic_formula.left) + "<" + term_to_string(*atomic_formula.right);
+            [](const LessOrEqualTo &node) {
+                return term_to_string(*node.left) + "<=" + term_to_string(*node.right);
             },
-            [](const LessOrEqualTo &atomic_formula) {
-                return term_to_string(*atomic_formula.left) + "<=" + term_to_string(*atomic_formula.right);
+            [](const GreaterThan &node) {
+                return term_to_string(*node.left) + ">" + term_to_string(*node.right);
             },
-            [](const GreaterThan &atomic_formula) {
-                return term_to_string(*atomic_formula.left) + ">" + term_to_string(*atomic_formula.right);
+            [](const GreaterOrEqualTo &node) {
+                return term_to_string(*node.left) + ">=" + term_to_string(*node.right);
             },
-            [](const GreaterOrEqualTo &atomic_formula) {
-                return term_to_string(*atomic_formula.left) + ">=" + term_to_string(*atomic_formula.right);
-            },
-            [](const NotEqualTo &atomic_formula) {
-                return term_to_string(*atomic_formula.left) + "!=" + term_to_string(*atomic_formula.right);
+            [](const NotEqualTo &node) {
+                return term_to_string(*node.left) + "!=" + term_to_string(*node.right);
             }
-        }, atomic_formula
+        }, atom
     );
 }
 
@@ -101,28 +98,31 @@ unsigned precedence(const Formula &formula)
 {
     return std::visit(
         overloaded{
-            [](const AtomicFormulaWrapper &afw) {
+            [](const AtomWrapper &node) {
                 return 6;
             },
-            [](const Negation &neg) {
+            [](const LogicConstant &node) {
+                return 6;
+            },
+            [](const Negation &node) {
                 return 5;
             },
-            [](const Conjuction &con) {
+            [](const Conjuction &node) {
                 return 4;
             },
-            [](const Disjunction &dis) {
+            [](const Disjunction &node) {
                 return 3;
             },
-            [](const Implication &impl) {
+            [](const Implication &node) {
                 return 2;
             },
-            [](const Equivalence &equi) {
+            [](const Equivalence &node) {
                 return 1;
             },
-            [](const UniversalQuantification &uni) {
+            [](const UniversalQuantification &node) {
                 return 0;
             },
-            [](const ExistentialQuantification &exi) {
+            [](const ExistentialQuantification &node) {
                 return 0;
             }
         }, formula
@@ -144,29 +144,32 @@ std::string formula_to_string(const Formula &formula)
 {
     return std::visit(
         overloaded{
-            [](const AtomicFormulaWrapper &afw) {
-                return atomic_formula_to_string(*afw.atomic_formula);
+            [](const AtomWrapper &node) {
+                return atomic_formula_to_string(*node.atom);
             },
-            [&formula](const Negation &neg) {
-                return "~" + formula_to_string(*neg.operand, formula);
+            [](const LogicConstant &node) {
+                return node.value ? std::string("T") : std::string("F");
             },
-            [&formula](const Conjuction &con) {
-                return formula_to_string(*con.left, formula) + " & " + formula_to_string(*con.right, formula);
+            [&formula](const Negation &node) {
+                return "~" + formula_to_string(*node.operand, formula);
             },
-            [&formula](const Disjunction &dis) {
-                return formula_to_string(*dis.left, formula) + " | " + formula_to_string(*dis.right, formula);
+            [&formula](const Conjuction &node) {
+                return formula_to_string(*node.left, formula) + " & " + formula_to_string(*node.right, formula);
             },
-            [&formula](const Implication &impl) {
-                return formula_to_string(*impl.left, formula) + " => " + formula_to_string(*impl.right, formula);
+            [&formula](const Disjunction &node) {
+                return formula_to_string(*node.left, formula) + " | " + formula_to_string(*node.right, formula);
             },
-            [&formula](const Equivalence &equi) {
-                return formula_to_string(*equi.left, formula) + " <=> " + formula_to_string(*equi.right, formula);
+            [&formula](const Implication &node) {
+                return formula_to_string(*node.left, formula) + " => " + formula_to_string(*node.right, formula);
             },
-            [&formula](const UniversalQuantification &uni) {
-                return "!" + std::string(1, uni.var_symbol) + "." + formula_to_string(*uni.formula, formula);
+            [&formula](const Equivalence &node) {
+                return formula_to_string(*node.left, formula) + " <=> " + formula_to_string(*node.right, formula);
             },
-            [&formula](const ExistentialQuantification &exi) {
-                return "?" + std::string(1, exi.var_symbol) + "." + formula_to_string(*exi.formula, formula);
+            [&formula](const UniversalQuantification &node) {
+                return "!" + std::string(1, node.var_symbol) + "." + formula_to_string(*node.formula, formula);
+            },
+            [&formula](const ExistentialQuantification &node) {
+                return "?" + std::string(1, node.var_symbol) + "." + formula_to_string(*node.formula, formula);
             }
         }, formula
     );
@@ -176,55 +179,58 @@ void process_inequalities(Formula &formula)
 {
     std::visit(
         overloaded{
-            [&formula](const AtomicFormulaWrapper &afw) {
-                auto &constraint = *afw.atomic_formula;
+            [&formula](const AtomWrapper &node) {
+                auto &constraint = *node.atom;
                 if (auto *leq = std::get_if<LessOrEqualTo>(&constraint)) {
-                    auto lt = std::make_shared<AtomicFormula>(LessThan(leq->left, leq->right));
-                    auto eq = std::make_shared<AtomicFormula>(EqualTo(leq->left, leq->right));
+                    auto lt = std::make_shared<Atom>(LessThan(leq->left, leq->right));
+                    auto eq = std::make_shared<Atom>(EqualTo(leq->left, leq->right));
                     formula = Disjunction(
-                        std::make_shared<Formula>(AtomicFormulaWrapper(lt)),
-                        std::make_shared<Formula>(AtomicFormulaWrapper(eq))
+                        std::make_shared<Formula>(AtomWrapper(lt)),
+                        std::make_shared<Formula>(AtomWrapper(eq))
                     );
                 } else if (std::holds_alternative<GreaterOrEqualTo>(constraint)) {
-                    auto gt = std::make_shared<AtomicFormula>(GreaterThan(leq->left, leq->right));
-                    auto eq = std::make_shared<AtomicFormula>(EqualTo(leq->left, leq->right));
+                    auto gt = std::make_shared<Atom>(GreaterThan(leq->left, leq->right));
+                    auto eq = std::make_shared<Atom>(EqualTo(leq->left, leq->right));
                     formula = Disjunction(
-                        std::make_shared<Formula>(AtomicFormulaWrapper(gt)),
-                        std::make_shared<Formula>(AtomicFormulaWrapper(eq))
+                        std::make_shared<Formula>(AtomWrapper(gt)),
+                        std::make_shared<Formula>(AtomWrapper(eq))
                     );
                 } else if (std::holds_alternative<NotEqualTo>(constraint)) {
-                    auto lt = std::make_shared<AtomicFormula>(LessThan(leq->left, leq->right));
-                    auto gt = std::make_shared<AtomicFormula>(GreaterThan(leq->left, leq->right));
+                    auto lt = std::make_shared<Atom>(LessThan(leq->left, leq->right));
+                    auto gt = std::make_shared<Atom>(GreaterThan(leq->left, leq->right));
                     formula = Disjunction(
-                        std::make_shared<Formula>(AtomicFormulaWrapper(lt)),
-                        std::make_shared<Formula>(AtomicFormulaWrapper(gt))
+                        std::make_shared<Formula>(AtomWrapper(lt)),
+                        std::make_shared<Formula>(AtomWrapper(gt))
                     );
                 }
             },
-            [](const Negation &neg) {
-                process_inequalities(*neg.operand);
+            [](const LogicConstant &node) {
+
             },
-            [](const Conjuction &con) {
-                process_inequalities(*con.left);
-                process_inequalities(*con.right);
+            [](const Negation &node) {
+                process_inequalities(*node.operand);
             },
-            [](const Disjunction &dis) {
-                process_inequalities(*dis.left);
-                process_inequalities(*dis.right);
+            [](const Conjuction &node) {
+                process_inequalities(*node.left);
+                process_inequalities(*node.right);
             },
-            [](const Implication &impl) {
-                process_inequalities(*impl.left);
-                process_inequalities(*impl.right);
+            [](const Disjunction &node) {
+                process_inequalities(*node.left);
+                process_inequalities(*node.right);
             },
-            [](const Equivalence &equi) {
-                process_inequalities(*equi.left);
-                process_inequalities(*equi.right);
+            [](const Implication &node) {
+                process_inequalities(*node.left);
+                process_inequalities(*node.right);
             },
-            [](const UniversalQuantification &uni) {
-                process_inequalities(*uni.formula);
+            [](const Equivalence &node) {
+                process_inequalities(*node.left);
+                process_inequalities(*node.right);
             },
-            [](const ExistentialQuantification &exi) {
-                process_inequalities(*exi.formula);
+            [](const UniversalQuantification &node) {
+                process_inequalities(*node.formula);
+            },
+            [](const ExistentialQuantification &node) {
+                process_inequalities(*node.formula);
             }
         }, formula
     );

@@ -6,7 +6,7 @@
 %code requires {
     class FOLDriver;
     class Term;
-    class AtomicFormula;
+    class Atom;
     class Formula;
     #include <memory>
 }
@@ -32,7 +32,7 @@
 %left '*' '/'
 
 %nterm <std::shared_ptr<Term>> term
-%nterm <std::shared_ptr<AtomicFormula>> atomic_formula
+%nterm <std::shared_ptr<Atom>> atom
 %nterm <std::shared_ptr<Formula>> formula
 
 %start complete_formula
@@ -52,18 +52,18 @@ formula:
 |   '!' VAR_T '.' formula { $$ = std::make_shared<Formula>(UniversalQuantification($2, std::move($4))); }
 |   '?' VAR_T '.' formula { $$ = std::make_shared<Formula>(ExistentialQuantification($2, std::move($4))); }
 |   '(' formula ')' { $$ = std::move($2); }
-|   atomic_formula { $$ = std::make_shared<Formula>(AtomicFormulaWrapper(std::move($1))); }
+|   atom { $$ = std::make_shared<Formula>(AtomWrapper(std::move($1))); }
+|   TRUE_T { $$ = std::make_shared<Formula>(LogicConstant(true)); }
+|   FALSE_T { $$ = std::make_shared<Formula>(LogicConstant(false)); }
 ;
 
-atomic_formula:
-    term '=' term { $$ = std::make_shared<AtomicFormula>(EqualTo(std::move($1), std::move($3))); }
-|   term '<' term { $$ = std::make_shared<AtomicFormula>(LessThan(std::move($1), std::move($3))); }
-|   term '>' term { $$ = std::make_shared<AtomicFormula>(GreaterThan(std::move($1), std::move($3))); }
-|   term LEQ_T term { $$ = std::make_shared<AtomicFormula>(LessOrEqualTo(std::move($1), std::move($3))); }
-|   term GEQ_T term { $$ = std::make_shared<AtomicFormula>(GreaterOrEqualTo(std::move($1), std::move($3))); }
-|   term NEQ_T term { $$ = std::make_shared<AtomicFormula>(NotEqualTo(std::move($1), std::move($3))); }
-|   TRUE_T { $$ = std::make_shared<AtomicFormula>(LogicalConstant(true)); }
-|   FALSE_T { $$ = std::make_shared<AtomicFormula>(LogicalConstant(false)); }
+atom:
+    term '=' term { $$ = std::make_shared<Atom>(EqualTo(std::move($1), std::move($3))); }
+|   term '<' term { $$ = std::make_shared<Atom>(LessThan(std::move($1), std::move($3))); }
+|   term '>' term { $$ = std::make_shared<Atom>(GreaterThan(std::move($1), std::move($3))); }
+|   term LEQ_T term { $$ = std::make_shared<Atom>(LessOrEqualTo(std::move($1), std::move($3))); }
+|   term GEQ_T term { $$ = std::make_shared<Atom>(GreaterOrEqualTo(std::move($1), std::move($3))); }
+|   term NEQ_T term { $$ = std::make_shared<Atom>(NotEqualTo(std::move($1), std::move($3))); }
 ;
 
 term:
