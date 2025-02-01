@@ -51,6 +51,14 @@
     return yy::parser::make_EQUI_T();
 }
 
+"T" {
+    return yy::parser::make_TRUE_T();
+}
+
+"F" {
+    return yy::parser::make_FALSE_T();
+}
+
 [ \t\r]+ {
 
 }

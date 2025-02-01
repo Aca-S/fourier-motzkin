@@ -246,30 +246,64 @@ void eliminate_constants(Formula &formula)
             [](const LogicConstant &node) {
 
             },
-            [](const Negation &node) {
+            [&formula](const Negation &node) {
                 eliminate_constants(*node.operand);
+                auto &operand = *node.operand;
+                if (auto *constant = std::get_if<LogicConstant>(&operand)) {
+                    formula = LogicConstant(!constant->value);
+                }
             },
-            [](const Conjuction &node) {
+            [&formula](const Conjuction &node) {
                 eliminate_constants(*node.left);
                 eliminate_constants(*node.right);
+                if (auto *constant = std::get_if<LogicConstant>(&*node.left)) {
+                    formula = constant->value ? *node.right : LogicConstant(false);
+                } else if (auto *constant = std::get_if<LogicConstant>(&*node.right)) {
+                    formula = constant->value ? *node.left : LogicConstant(false);
+                }
             },
-            [](const Disjunction &node) {
+            [&formula](const Disjunction &node) {
                 eliminate_constants(*node.left);
                 eliminate_constants(*node.right);
+                if (auto *constant = std::get_if<LogicConstant>(&*node.left)) {
+                    formula = constant->value ? LogicConstant(true) : *node.right;
+                } else if (auto *constant = std::get_if<LogicConstant>(&*node.right)) {
+                    formula = constant->value ? LogicConstant(true) : *node.left;
+                }
             },
-            [](const Implication &node) {
+            [&formula](const Implication &node) {
                 eliminate_constants(*node.left);
                 eliminate_constants(*node.right);
+                if (auto *constant = std::get_if<LogicConstant>(&*node.left)) {
+                    formula = constant->value ? *node.right : LogicConstant(true);
+                } else if (auto *constant = std::get_if<LogicConstant>(&*node.right)) {
+                    if (constant->value) {
+                        formula = LogicConstant(true);
+                    } else {
+                        formula = Negation(node.left);
+                    }
+                }
             },
-            [](const Equivalence &node) {
+            [&formula](const Equivalence &node) {
                 eliminate_constants(*node.left);
                 eliminate_constants(*node.right);
+                if (auto *constant = std::get_if<LogicConstant>(&*node.left)) {
+                    formula = constant->value ? *node.right : Negation(node.right);
+                } else if (auto *constant = std::get_if<LogicConstant>(&*node.right)) {
+                    formula = constant->value ? *node.left : Negation(node.left);
+                }
             },
-            [](const UniversalQuantification &node) {
+            [&formula](const UniversalQuantification &node) {
                 eliminate_constants(*node.formula);
+                if (auto *constant = std::get_if<LogicConstant>(&*node.formula)) {
+                    formula = *constant;
+                }
             },
-            [](const ExistentialQuantification &node) {
+            [&formula](const ExistentialQuantification &node) {
                 eliminate_constants(*node.formula);
+                if (auto *constant = std::get_if<LogicConstant>(&*node.formula)) {
+                    formula = *constant;
+                }
             }
         }, formula
     );

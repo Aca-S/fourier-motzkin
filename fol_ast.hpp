@@ -146,6 +146,7 @@ std::string formula_to_string(const Formula &formula);
 // them into disjunctions of <, > and =.
 void process_inequalities(Formula &formula);
 
+// Removes occurences of logic constants in the formula (T and F).
 void eliminate_constants(Formula &formula);
 
 #endif // FOL_AST_HPP
