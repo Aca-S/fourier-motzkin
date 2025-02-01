@@ -135,4 +135,6 @@ template <typename... Ts> struct overloaded : Ts...
 
 template <typename... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
+std::string formula_to_string(const Formula &formula);
+
 #endif // FOL_AST_HPP

@@ -66,9 +66,10 @@ int main(int argc, char *argv[])
     std::cout << "Is satisfiable: " << (is_sat ? "true" : "false") << std::endl;
 
     FOLDriver driver;
-    const auto formula = driver.parse("!x.!y.!z.(2*x < 3*y & 3*x < 2*y & 7*y < 5*z => 14*x < 10*z)");
+    const auto formula = driver.parse("!x.!y.!z.(2*(x + 1) < 3*y & 3*x < 2*y & 7*y < 5*z => 14*x < 10*z)");
     if (formula) {
         std::cout << "Formula is valid" << std::endl;
+        std::cout << formula_to_string(*formula) << std::endl;
     } else {
         std::cout << "Formula is invalid" << std::endl;
     }
