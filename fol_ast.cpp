@@ -309,3 +309,131 @@ void eliminate_constants(Formula &formula)
     );
 }
 
+void eliminate_implications_and_equivalences(Formula &formula)
+{
+    std::visit(
+        overloaded{
+            [](const AtomWrapper &node) {
+
+            },
+            [](const LogicConstant &node) {
+
+            },
+            [](const Negation &node) {
+                eliminate_implications_and_equivalences(*node.operand);
+            },
+            [](const Conjuction &node) {
+                eliminate_implications_and_equivalences(*node.left);
+                eliminate_implications_and_equivalences(*node.right);
+            },
+            [](const Disjunction &node) {
+                eliminate_implications_and_equivalences(*node.left);
+                eliminate_implications_and_equivalences(*node.right);
+            },
+            [&formula](const Implication &node) {
+                eliminate_implications_and_equivalences(*node.left);
+                eliminate_implications_and_equivalences(*node.right);
+                formula = Disjunction(
+                    std::make_shared<Formula>(Negation(node.left)),
+                    node.right
+                );
+            },
+            [&formula](const Equivalence &node) {
+                eliminate_implications_and_equivalences(*node.left);
+                eliminate_implications_and_equivalences(*node.right);
+                formula = Disjunction(
+                    std::make_shared<Formula>(Conjuction(node.left, node.right)),
+                    std::make_shared<Formula>(Conjuction(
+                        std::make_shared<Formula>(Negation(node.left)),
+                        std::make_shared<Formula>(Negation(node.right))
+                    ))
+                );
+            },
+            [](const UniversalQuantification &node) {
+                eliminate_implications_and_equivalences(*node.formula);
+            },
+            [](const ExistentialQuantification &node) {
+                eliminate_implications_and_equivalences(*node.formula);
+            }
+        }, formula
+    );
+}
+
+void push_negations(Formula &formula)
+{
+    std::visit(
+        overloaded{
+            [](const AtomWrapper &node) {
+
+            },
+            [](const LogicConstant &node) {
+
+            },
+            [&formula](const Negation &node) {
+                if (auto *conjuction = std::get_if<Conjuction>(&*node.operand)) {
+                    auto disjunction = Disjunction(
+                        std::make_shared<Formula>(Negation(conjuction->left)),
+                        std::make_shared<Formula>(Negation(conjuction->right))
+                    );
+                    push_negations(*disjunction.left);
+                    push_negations(*disjunction.right);
+                    formula = disjunction;
+                } else if (auto *disjunction = std::get_if<Disjunction>(&*node.operand)) {
+                    auto conjuction = Conjuction(
+                        std::make_shared<Formula>(Negation(disjunction->left)),
+                        std::make_shared<Formula>(Negation(disjunction->right))
+                    );
+                    push_negations(*conjuction.left);
+                    push_negations(*conjuction.right);
+                    formula = conjuction;
+                } else if (auto *negation = std::get_if<Negation>(&*node.operand)) {
+                    auto nested_formula = *negation->operand;
+                    push_negations(nested_formula);
+                    formula = nested_formula;
+                } else if (auto *universal_quant = std::get_if<UniversalQuantification>(&*node.operand)) {
+                    auto existential_quant = ExistentialQuantification(
+                        universal_quant->var_symbol,
+                        std::make_shared<Formula>(Negation(universal_quant->formula))
+                    );
+                    push_negations(*existential_quant.formula);
+                    formula = existential_quant;
+                } else if (auto *existential_quant = std::get_if<ExistentialQuantification>(&*node.operand)) {
+                    auto universal_quant = UniversalQuantification(
+                        existential_quant->var_symbol,
+                        std::make_shared<Formula>(Negation(existential_quant->formula))
+                    );
+                    push_negations(*universal_quant.formula);
+                    formula = universal_quant;
+                } else {
+                    push_negations(*node.operand);
+                }
+            },
+            [](const Conjuction &node) {
+                push_negations(*node.left);
+                push_negations(*node.right);
+            },
+            [](const Disjunction &node) {
+                push_negations(*node.left);
+                push_negations(*node.right);
+            },
+            [](const Implication &node) {
+                throw std::invalid_argument("Formula must not contain implication operators");
+            },
+            [](const Equivalence &node) {
+                throw std::invalid_argument("Formula must not contain equivalence operators");
+            },
+            [](const UniversalQuantification &node) {
+                push_negations(*node.formula);
+            },
+            [](const ExistentialQuantification &node) {
+                push_negations(*node.formula);
+            }
+        }, formula
+    );
+}
+
+void convert_to_negation_normal_form(Formula &formula)
+{
+    eliminate_implications_and_equivalences(formula);
+    push_negations(formula);
+}

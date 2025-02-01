@@ -149,4 +149,6 @@ void process_inequalities(Formula &formula);
 // Removes occurences of logic constants in the formula (T and F).
 void eliminate_constants(Formula &formula);
 
+void convert_to_negation_normal_form(Formula &formula);
+
 #endif // FOL_AST_HPP
