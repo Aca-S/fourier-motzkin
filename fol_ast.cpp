@@ -3,6 +3,21 @@
 #include <ostream>
 #include <variant>
 
+// For overloaded lambdas...
+template <typename... Ts> struct overloaded : Ts...
+{
+    using Ts::operator()...;
+};
+
+template <typename... Ts> overloaded(Ts...) -> overloaded<Ts...>;
+
+
+template <typename T, typename... Args>
+std::shared_ptr<Formula> f_ptr(Args&&... args)
+{
+    return std::make_shared<Formula>(T(args...));
+}
+
 unsigned precedence(const Term &term)
 {
     return std::visit(
@@ -175,265 +190,176 @@ std::string formula_to_string(const Formula &formula)
     );
 }
 
-void process_inequalities(Formula &formula)
+std::shared_ptr<Formula> simplify(std::shared_ptr<Formula> formula)
 {
-    std::visit(
+    return std::visit(
         overloaded{
             [&formula](const AtomWrapper &node) {
-                auto &constraint = *node.atom;
-                if (auto *leq = std::get_if<LessOrEqualTo>(&constraint)) {
-                    auto lt = std::make_shared<Atom>(LessThan(leq->left, leq->right));
-                    auto eq = std::make_shared<Atom>(EqualTo(leq->left, leq->right));
-                    formula = Disjunction(
-                        std::make_shared<Formula>(AtomWrapper(lt)),
-                        std::make_shared<Formula>(AtomWrapper(eq))
-                    );
-                } else if (auto *geq = std::get_if<GreaterOrEqualTo>(&constraint)) {
-                    auto gt = std::make_shared<Atom>(GreaterThan(geq->left, geq->right));
-                    auto eq = std::make_shared<Atom>(EqualTo(geq->left, geq->right));
-                    formula = Disjunction(
-                        std::make_shared<Formula>(AtomWrapper(gt)),
-                        std::make_shared<Formula>(AtomWrapper(eq))
-                    );
-                } else if (auto *neq = std::get_if<NotEqualTo>(&constraint)) {
-                    auto lt = std::make_shared<Atom>(LessThan(neq->left, neq->right));
-                    auto gt = std::make_shared<Atom>(GreaterThan(neq->left, neq->right));
-                    formula = Disjunction(
-                        std::make_shared<Formula>(AtomWrapper(lt)),
-                        std::make_shared<Formula>(AtomWrapper(gt))
-                    );
-                }
+                return formula;
             },
-            [](const LogicConstant &node) {
-
+            [&formula](const LogicConstant &node) {
+                return formula;
             },
             [](const Negation &node) {
-                process_inequalities(*node.operand);
-            },
-            [](const Conjuction &node) {
-                process_inequalities(*node.left);
-                process_inequalities(*node.right);
-            },
-            [](const Disjunction &node) {
-                process_inequalities(*node.left);
-                process_inequalities(*node.right);
-            },
-            [](const Implication &node) {
-                process_inequalities(*node.left);
-                process_inequalities(*node.right);
-            },
-            [](const Equivalence &node) {
-                process_inequalities(*node.left);
-                process_inequalities(*node.right);
-            },
-            [](const UniversalQuantification &node) {
-                process_inequalities(*node.formula);
-            },
-            [](const ExistentialQuantification &node) {
-                process_inequalities(*node.formula);
-            }
-        }, formula
-    );
-}
-
-void eliminate_constants(Formula &formula)
-{
-    std::visit(
-        overloaded{
-            [](const AtomWrapper &node) {
-
-            },
-            [](const LogicConstant &node) {
-
-            },
-            [&formula](const Negation &node) {
-                eliminate_constants(*node.operand);
-                auto &operand = *node.operand;
-                if (auto *constant = std::get_if<LogicConstant>(&operand)) {
-                    formula = LogicConstant(!constant->value);
-                }
-            },
-            [&formula](const Conjuction &node) {
-                eliminate_constants(*node.left);
-                eliminate_constants(*node.right);
-                if (auto *constant = std::get_if<LogicConstant>(&*node.left)) {
-                    formula = constant->value ? *node.right : LogicConstant(false);
-                } else if (auto *constant = std::get_if<LogicConstant>(&*node.right)) {
-                    formula = constant->value ? *node.left : LogicConstant(false);
-                }
-            },
-            [&formula](const Disjunction &node) {
-                eliminate_constants(*node.left);
-                eliminate_constants(*node.right);
-                if (auto *constant = std::get_if<LogicConstant>(&*node.left)) {
-                    formula = constant->value ? LogicConstant(true) : *node.right;
-                } else if (auto *constant = std::get_if<LogicConstant>(&*node.right)) {
-                    formula = constant->value ? LogicConstant(true) : *node.left;
-                }
-            },
-            [&formula](const Implication &node) {
-                eliminate_constants(*node.left);
-                eliminate_constants(*node.right);
-                if (auto *constant = std::get_if<LogicConstant>(&*node.left)) {
-                    formula = constant->value ? *node.right : LogicConstant(true);
-                } else if (auto *constant = std::get_if<LogicConstant>(&*node.right)) {
-                    if (constant->value) {
-                        formula = LogicConstant(true);
-                    } else {
-                        formula = Negation(node.left);
-                    }
-                }
-            },
-            [&formula](const Equivalence &node) {
-                eliminate_constants(*node.left);
-                eliminate_constants(*node.right);
-                if (auto *constant = std::get_if<LogicConstant>(&*node.left)) {
-                    formula = constant->value ? *node.right : Negation(node.right);
-                } else if (auto *constant = std::get_if<LogicConstant>(&*node.right)) {
-                    formula = constant->value ? *node.left : Negation(node.left);
-                }
-            },
-            [&formula](const UniversalQuantification &node) {
-                eliminate_constants(*node.formula);
-                if (auto *constant = std::get_if<LogicConstant>(&*node.formula)) {
-                    formula = *constant;
-                }
-            },
-            [&formula](const ExistentialQuantification &node) {
-                eliminate_constants(*node.formula);
-                if (auto *constant = std::get_if<LogicConstant>(&*node.formula)) {
-                    formula = *constant;
-                }
-            }
-        }, formula
-    );
-}
-
-void eliminate_implications_and_equivalences(Formula &formula)
-{
-    std::visit(
-        overloaded{
-            [](const AtomWrapper &node) {
-
-            },
-            [](const LogicConstant &node) {
-
-            },
-            [](const Negation &node) {
-                eliminate_implications_and_equivalences(*node.operand);
-            },
-            [](const Conjuction &node) {
-                eliminate_implications_and_equivalences(*node.left);
-                eliminate_implications_and_equivalences(*node.right);
-            },
-            [](const Disjunction &node) {
-                eliminate_implications_and_equivalences(*node.left);
-                eliminate_implications_and_equivalences(*node.right);
-            },
-            [&formula](const Implication &node) {
-                eliminate_implications_and_equivalences(*node.left);
-                eliminate_implications_and_equivalences(*node.right);
-                formula = Disjunction(
-                    std::make_shared<Formula>(Negation(node.left)),
-                    node.right
-                );
-            },
-            [&formula](const Equivalence &node) {
-                eliminate_implications_and_equivalences(*node.left);
-                eliminate_implications_and_equivalences(*node.right);
-                formula = Disjunction(
-                    std::make_shared<Formula>(Conjuction(node.left, node.right)),
-                    std::make_shared<Formula>(Conjuction(
-                        std::make_shared<Formula>(Negation(node.left)),
-                        std::make_shared<Formula>(Negation(node.right))
-                    ))
-                );
-            },
-            [](const UniversalQuantification &node) {
-                eliminate_implications_and_equivalences(*node.formula);
-            },
-            [](const ExistentialQuantification &node) {
-                eliminate_implications_and_equivalences(*node.formula);
-            }
-        }, formula
-    );
-}
-
-void push_negations(Formula &formula)
-{
-    std::visit(
-        overloaded{
-            [](const AtomWrapper &node) {
-
-            },
-            [](const LogicConstant &node) {
-
-            },
-            [&formula](const Negation &node) {
-                if (auto *conjuction = std::get_if<Conjuction>(&*node.operand)) {
-                    auto disjunction = Disjunction(
-                        std::make_shared<Formula>(Negation(conjuction->left)),
-                        std::make_shared<Formula>(Negation(conjuction->right))
-                    );
-                    push_negations(*disjunction.left);
-                    push_negations(*disjunction.right);
-                    formula = disjunction;
-                } else if (auto *disjunction = std::get_if<Disjunction>(&*node.operand)) {
-                    auto conjuction = Conjuction(
-                        std::make_shared<Formula>(Negation(disjunction->left)),
-                        std::make_shared<Formula>(Negation(disjunction->right))
-                    );
-                    push_negations(*conjuction.left);
-                    push_negations(*conjuction.right);
-                    formula = conjuction;
-                } else if (auto *negation = std::get_if<Negation>(&*node.operand)) {
-                    auto nested_formula = *negation->operand;
-                    push_negations(nested_formula);
-                    formula = nested_formula;
-                } else if (auto *universal_quant = std::get_if<UniversalQuantification>(&*node.operand)) {
-                    auto existential_quant = ExistentialQuantification(
-                        universal_quant->var_symbol,
-                        std::make_shared<Formula>(Negation(universal_quant->formula))
-                    );
-                    push_negations(*existential_quant.formula);
-                    formula = existential_quant;
-                } else if (auto *existential_quant = std::get_if<ExistentialQuantification>(&*node.operand)) {
-                    auto universal_quant = UniversalQuantification(
-                        existential_quant->var_symbol,
-                        std::make_shared<Formula>(Negation(existential_quant->formula))
-                    );
-                    push_negations(*universal_quant.formula);
-                    formula = universal_quant;
+                const auto subformula = simplify(node.operand);
+                if (const auto *lc = std::get_if<LogicConstant>(subformula.get())) {
+                    return f_ptr<LogicConstant>(!lc->value);
                 } else {
-                    push_negations(*node.operand);
+                    return f_ptr<Negation>(subformula);
                 }
             },
             [](const Conjuction &node) {
-                push_negations(*node.left);
-                push_negations(*node.right);
+                const auto l_subformula = simplify(node.left);
+                const auto r_subformula = simplify(node.right);
+                if (const auto *lc = std::get_if<LogicConstant>(l_subformula.get())) {
+                    return lc->value
+                        ? r_subformula
+                        : f_ptr<LogicConstant>(false);
+                } else if (const auto *lc = std::get_if<LogicConstant>(r_subformula.get())) {
+                    return lc->value
+                        ? l_subformula
+                        : f_ptr<LogicConstant>(false);
+                } else {
+                    return f_ptr<Conjuction>(l_subformula, r_subformula);
+                }
             },
             [](const Disjunction &node) {
-                push_negations(*node.left);
-                push_negations(*node.right);
+                const auto l_subformula = simplify(node.left);
+                const auto r_subformula = simplify(node.right);
+                if (const auto *lc = std::get_if<LogicConstant>(l_subformula.get())) {
+                    return lc->value
+                        ? f_ptr<LogicConstant>(true)
+                        : r_subformula;
+                } else if (const auto *lc = std::get_if<LogicConstant>(r_subformula.get())) {
+                    return lc->value
+                        ? f_ptr<LogicConstant>(true)
+                        : l_subformula;
+                } else {
+                    return f_ptr<Disjunction>(l_subformula, r_subformula);
+                }
             },
             [](const Implication &node) {
-                throw std::invalid_argument("Formula must not contain implication operators");
+                const auto l_subformula = simplify(node.left);
+                const auto r_subformula = simplify(node.right);
+                if (const auto *lc = std::get_if<LogicConstant>(l_subformula.get())) {
+                    return lc->value
+                        ? r_subformula
+                        : f_ptr<LogicConstant>(true);
+                } else if (const auto *lc = std::get_if<LogicConstant>(r_subformula.get())) {
+                    return lc->value
+                        ? f_ptr<LogicConstant>(true)
+                        : f_ptr<Negation>(l_subformula);
+                } else {
+                    return f_ptr<Implication>(l_subformula, r_subformula);
+                }
             },
             [](const Equivalence &node) {
-                throw std::invalid_argument("Formula must not contain equivalence operators");
+                const auto l_subformula = simplify(node.left);
+                const auto r_subformula = simplify(node.right);
+                if (const auto *lc = std::get_if<LogicConstant>(l_subformula.get())) {
+                    return lc->value
+                        ? r_subformula
+                        : f_ptr<Negation>(r_subformula);
+                } else if (const auto *lc = std::get_if<LogicConstant>(r_subformula.get())) {
+                    return lc->value
+                        ? l_subformula
+                        : f_ptr<Negation>(l_subformula);
+                } else {
+                    return f_ptr<Equivalence>(l_subformula, r_subformula);
+                }
             },
             [](const UniversalQuantification &node) {
-                push_negations(*node.formula);
+                const auto subformula = simplify(node.formula);
+                if (const auto *lc = std::get_if<LogicConstant>(subformula.get())) {
+                    return subformula;
+                } else {
+                    return f_ptr<UniversalQuantification>(node.var_symbol, subformula);
+                }
             },
             [](const ExistentialQuantification &node) {
-                push_negations(*node.formula);
+                const auto subformula = simplify(node.formula);
+                if (const auto *lc = std::get_if<LogicConstant>(subformula.get())) {
+                    return subformula;
+                } else {
+                    return f_ptr<ExistentialQuantification>(node.var_symbol, subformula);
+                }
             }
-        }, formula
+        }, *formula
     );
 }
 
-void convert_to_negation_normal_form(Formula &formula)
+std::shared_ptr<Formula> nnf_not(std::shared_ptr<Formula> formula)
 {
-    eliminate_implications_and_equivalences(formula);
-    push_negations(formula);
+    return std::visit(
+        overloaded{
+            [&formula](const AtomWrapper &node) {
+                return f_ptr<Negation>(formula);
+            },
+            [&formula](const LogicConstant &node) {
+                return f_ptr<LogicConstant>(!node.value);
+            },
+            [](const Negation &node) {
+                return nnf(node.operand);
+            },
+            [](const Conjuction &node) {
+                return f_ptr<Disjunction>(nnf_not(node.left), nnf_not(node.right));
+            },
+            [](const Disjunction &node) {
+                return f_ptr<Conjuction>(nnf_not(node.left), nnf_not(node.right));
+            },
+            [](const Implication &node) {
+                return f_ptr<Conjuction>(nnf(node.left), nnf_not(node.right));;
+            },
+            [](const Equivalence &node) {
+                return f_ptr<Conjuction>(
+                    f_ptr<Disjunction>(nnf(node.left), nnf(node.right)),
+                    f_ptr<Disjunction>(nnf_not(node.left), nnf_not(node.right))
+                );
+            },
+            [](const UniversalQuantification &node) {
+                return f_ptr<ExistentialQuantification>(node.var_symbol, nnf_not(node.formula));
+            },
+            [](const ExistentialQuantification &node) {
+                return f_ptr<ExistentialQuantification>(node.var_symbol, nnf_not(node.formula));
+            }
+        }, *formula
+    );
+}
+
+std::shared_ptr<Formula> nnf(std::shared_ptr<Formula> formula)
+{
+    return std::visit(
+        overloaded{
+            [&formula](const AtomWrapper &node) {
+                return formula;
+            },
+            [&formula](const LogicConstant &node) {
+                return formula;
+            },
+            [](const Negation &node) {
+                return nnf_not(node.operand);
+            },
+            [](const Conjuction &node) {
+                return f_ptr<Conjuction>(nnf(node.left), nnf(node.right));
+            },
+            [](const Disjunction &node) {
+                return f_ptr<Disjunction>(nnf(node.left), nnf(node.right));
+            },
+            [](const Implication &node) {
+                return f_ptr<Disjunction>(nnf_not(node.left), nnf(node.right));;
+            },
+            [](const Equivalence &node) {
+                return f_ptr<Conjuction>(
+                    f_ptr<Disjunction>(nnf(node.left), nnf_not(node.right)),
+                    f_ptr<Disjunction>(nnf_not(node.left), nnf(node.right))
+                );
+            },
+            [](const UniversalQuantification &node) {
+                return f_ptr<UniversalQuantification>(node.var_symbol, nnf(node.formula));
+            },
+            [](const ExistentialQuantification &node) {
+                return f_ptr<ExistentialQuantification>(node.var_symbol, nnf(node.formula));
+            }
+        }, *formula
+    );
 }

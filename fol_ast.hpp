@@ -132,23 +132,9 @@ struct Formula : public std::variant<AtomWrapper, LogicConstant, Negation, Conju
     using variant<AtomWrapper, LogicConstant, Negation, Conjuction, Disjunction, Implication, Equivalence, UniversalQuantification, ExistentialQuantification>::variant;
 };
 
-// For overloaded lambdas...
-template <typename... Ts> struct overloaded : Ts...
-{
-    using Ts::operator()...;
-};
-
-template <typename... Ts> overloaded(Ts...) -> overloaded<Ts...>;
-
 std::string formula_to_string(const Formula &formula);
 
-// Removes occurrences of <=, >= and != in the formula by transforming
-// them into disjunctions of <, > and =.
-void process_inequalities(Formula &formula);
-
-// Removes occurences of logic constants in the formula (T and F).
-void eliminate_constants(Formula &formula);
-
-void convert_to_negation_normal_form(Formula &formula);
+std::shared_ptr<Formula> simplify(std::shared_ptr<Formula> formula);
+std::shared_ptr<Formula> nnf(std::shared_ptr<Formula> formula);
 
 #endif // FOL_AST_HPP
