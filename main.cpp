@@ -79,10 +79,10 @@ int main(int argc, char *argv[])
     // }
 
     FOLDriver driver;
-    const auto formula = driver.parse("!x.~!y.!z.~~(2*(x + 1) < 3*y & 3*x <= 2*y & (!y.7*y < 5*z) | ~T => 14*x < 10*z)");
+    //const auto formula = driver.parse("!x.~!y.!z.~~(2*(x + 1) < 3*y & 3*x <= 2*y & (!y.7*y < 5*z) | ~T => 14*x < 10*z)");
+    const auto formula = driver.parse("!x.!y.!z.2*x<3*y & 3*x<2*y & 7*y<5*z => 14*x<10*z & q < 3");
     if (formula) {
-        std::cout << formula_to_string(*nnf(formula)) << std::endl;
-        std::cout << formula_to_string(*pnf(formula)) << std::endl;
+        std::cout << formula_to_string(*close(pnf(formula))) << std::endl;
     }
 
     return 0;

@@ -135,10 +135,16 @@ struct Formula : public std::variant<AtomWrapper, LogicConstant, Negation, Conju
 
 std::string formula_to_string(const Formula &formula);
 
+// Removes logical constants from the given formula or transforms it to a constant itself.
 std::shared_ptr<Formula> simplify(std::shared_ptr<Formula> formula);
+
+// Converts the given formula to negation normal form.
 std::shared_ptr<Formula> nnf(std::shared_ptr<Formula> formula);
+
+// Converts the given formula to prenex normal form.
 std::shared_ptr<Formula> pnf(std::shared_ptr<Formula> formula);
 
-std::shared_ptr<Formula> substitute(std::shared_ptr<Formula> formula, const std::string &var, std::shared_ptr<Term> s_term);
+// Converts the given formula to its closed form.
+std::shared_ptr<Formula> close(std::shared_ptr<Formula> formula);
 
 #endif // FOL_AST_HPP

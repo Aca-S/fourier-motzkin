@@ -743,3 +743,14 @@ std::shared_ptr<Formula> pnf(std::shared_ptr<Formula> formula)
 {
     return pnf_h(nnf(formula));
 }
+
+std::shared_ptr<Formula> close(std::shared_ptr<Formula> formula)
+{
+    std::set<std::string> free_vars;
+    collect_free_variables(formula, free_vars);
+    auto closed_formula = formula;
+    for (const auto &var : free_vars) {
+        closed_formula = f_ptr<ExistentialQuantification>(var, closed_formula);
+    }
+    return closed_formula;
+}
