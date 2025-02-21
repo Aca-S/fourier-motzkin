@@ -725,10 +725,12 @@ std::shared_ptr<Formula> pnf_h(std::shared_ptr<Formula> formula)
             },
             [&formula](const Implication &node) {
                 assert(!"Unreachable");
-                return formula;            },
+                return formula;
+            },
             [&formula](const Equivalence &node) {
                 assert(!"Unreachable");
-                return formula;               },
+                return formula;
+            },
             [](const UniversalQuantification &node) {
                 return f_ptr<UniversalQuantification>(node.var_symbol, pnf_h(node.formula));
             },
@@ -742,6 +744,62 @@ std::shared_ptr<Formula> pnf_h(std::shared_ptr<Formula> formula)
 std::shared_ptr<Formula> pnf(std::shared_ptr<Formula> formula)
 {
     return pnf_h(nnf(formula));
+}
+
+std::shared_ptr<Formula> dnf_h(std::shared_ptr<Formula> formula)
+{
+    return std::visit(
+        overloaded{
+            [&formula](const AtomWrapper &node) {
+                return formula;
+            },
+            [&formula](const LogicConstant &node) {
+                return formula;
+            },
+            [&formula](const Negation &node) {
+                return formula;
+            },
+            [&formula](const Conjuction &node) {
+                const auto left = dnf_h(node.left);
+                const auto right = dnf_h(node.right);
+                if (const auto *dis = std::get_if<Disjunction>(left.get())) {
+                    return f_ptr<Disjunction>(
+                        dnf_h(f_ptr<Conjuction>(dis->left, right)),
+                        dnf_h(f_ptr<Conjuction>(dis->right, right))
+                    );
+                } else if (const auto *dis = std::get_if<Disjunction>(right.get())) {
+                    return f_ptr<Disjunction>(
+                        dnf_h(f_ptr<Conjuction>(left, dis->left)),
+                        dnf_h(f_ptr<Conjuction>(left, dis->right))
+                    );
+                } else {
+                    return formula;
+                }
+            },
+            [](const Disjunction &node) {
+                return f_ptr<Disjunction>(dnf_h(node.left), dnf_h(node.right));
+            },
+            [&formula](const Implication &node) {
+                assert(!"Unreachable");
+                return formula;
+            },
+            [&formula](const Equivalence &node) {
+                assert(!"Unreachable");
+                return formula;
+            },
+            [](const UniversalQuantification &node) {
+                return f_ptr<UniversalQuantification>(node.var_symbol, dnf_h(node.formula));
+            },
+            [](const ExistentialQuantification &node) {
+                return f_ptr<UniversalQuantification>(node.var_symbol, dnf_h(node.formula));
+            }
+        }, *formula
+    );
+}
+
+std::shared_ptr<Formula> dnf(std::shared_ptr<Formula> formula)
+{
+    return dnf_h(pnf(formula));
 }
 
 std::shared_ptr<Formula> close(std::shared_ptr<Formula> formula)
