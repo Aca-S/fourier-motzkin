@@ -27,6 +27,8 @@ add_executable(fourier_motzkin
     fol_ast.hpp
     fol_driver.cpp
     fol_driver.hpp
+    theorem_prover.cpp
+    theorem_prover.hpp
     ${BISON_fol_parser_OUTPUTS}
     ${FLEX_fol_lexer_OUTPUTS}
 )

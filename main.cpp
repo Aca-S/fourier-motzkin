@@ -1,6 +1,7 @@
 #include "fourier_motzkin.hpp"
 #include "fraction.hpp"
 #include "fol_driver.hpp"
+#include "theorem_prover.hpp"
 
 #include <iostream>
 
@@ -84,6 +85,9 @@ int main(int argc, char *argv[])
     if (formula) {
         std::cout << formula_to_string(*close(dnf(formula))) << std::endl;
     }
+
+    TheoremProver prover;
+    std::cout << prover.is_theorem("!x.!y.!z.2*x<3*y & 3*x<2*y & 7*y<5*z => 14*x<10*z") << std::endl;
 
     return 0;
 }
