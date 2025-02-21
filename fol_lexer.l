@@ -16,7 +16,7 @@
 }
 
 [a-z] {
-    return yy::parser::make_VAR_T(*yytext);
+    return yy::parser::make_VAR_T(yytext);
 }
 
 [+\-*/()] {

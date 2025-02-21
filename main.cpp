@@ -81,8 +81,8 @@ int main(int argc, char *argv[])
     FOLDriver driver;
     const auto formula = driver.parse("!x.~!y.!z.~~(2*(x + 1) < 3*y & 3*x <= 2*y & (!y.7*y < 5*z) | ~T => 14*x < 10*z)");
     if (formula) {
-        std::cout << formula_to_string(*nnf(simplify(formula))) << std::endl;
-        std::cout << formula_to_string(*formula) << std::endl;
+        std::cout << formula_to_string(*nnf(formula)) << std::endl;
+        std::cout << formula_to_string(*pnf(formula)) << std::endl;
     }
 
     return 0;

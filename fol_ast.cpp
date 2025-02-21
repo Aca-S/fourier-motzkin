@@ -2,6 +2,8 @@
 
 #include <ostream>
 #include <variant>
+#include <cassert>
+#include <set>
 
 // For overloaded lambdas...
 template <typename... Ts> struct overloaded : Ts...
@@ -11,6 +13,17 @@ template <typename... Ts> struct overloaded : Ts...
 
 template <typename... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
+template <typename T, typename... Args>
+std::shared_ptr<Term> t_ptr(Args&&... args)
+{
+    return std::make_shared<Term>(T(args...));
+}
+
+template <typename T, typename... Args>
+std::shared_ptr<Atom> a_ptr(Args&&... args)
+{
+    return std::make_shared<Atom>(T(args...));
+}
 
 template <typename T, typename... Args>
 std::shared_ptr<Formula> f_ptr(Args&&... args)
@@ -65,7 +78,7 @@ std::string term_to_string(const Term &term)
                 return std::to_string(num) + (den == 1 ? "" : "/" + std::to_string(den));
             },
             [](const Variable &node) {
-                return std::string(1, node.symbol);
+                return node.symbol;
             },
             [&term](const Addition &node) {
                 return term_to_string(*node.left, term) + "+" + term_to_string(*node.right, term);
@@ -181,10 +194,10 @@ std::string formula_to_string(const Formula &formula)
                 return formula_to_string(*node.left, formula) + " <=> " + formula_to_string(*node.right, formula);
             },
             [&formula](const UniversalQuantification &node) {
-                return "!" + std::string(1, node.var_symbol) + "." + formula_to_string(*node.formula, formula);
+                return "!" + node.var_symbol + "." + formula_to_string(*node.formula, formula);
             },
             [&formula](const ExistentialQuantification &node) {
-                return "?" + std::string(1, node.var_symbol) + "." + formula_to_string(*node.formula, formula);
+                return "?" + node.var_symbol + "." + formula_to_string(*node.formula, formula);
             }
         }, formula
     );
@@ -288,6 +301,8 @@ std::shared_ptr<Formula> simplify(std::shared_ptr<Formula> formula)
     );
 }
 
+std::shared_ptr<Formula> nnf_h(std::shared_ptr<Formula> formula);
+
 std::shared_ptr<Formula> nnf_not(std::shared_ptr<Formula> formula)
 {
     return std::visit(
@@ -296,10 +311,11 @@ std::shared_ptr<Formula> nnf_not(std::shared_ptr<Formula> formula)
                 return f_ptr<Negation>(formula);
             },
             [&formula](const LogicConstant &node) {
-                return f_ptr<LogicConstant>(!node.value);
+                assert(!"Unreachable");
+                return formula;
             },
             [](const Negation &node) {
-                return nnf(node.operand);
+                return nnf_h(node.operand);
             },
             [](const Conjuction &node) {
                 return f_ptr<Disjunction>(nnf_not(node.left), nnf_not(node.right));
@@ -308,11 +324,11 @@ std::shared_ptr<Formula> nnf_not(std::shared_ptr<Formula> formula)
                 return f_ptr<Conjuction>(nnf_not(node.left), nnf_not(node.right));
             },
             [](const Implication &node) {
-                return f_ptr<Conjuction>(nnf(node.left), nnf_not(node.right));;
+                return f_ptr<Conjuction>(nnf_h(node.left), nnf_not(node.right));;
             },
             [](const Equivalence &node) {
                 return f_ptr<Conjuction>(
-                    f_ptr<Disjunction>(nnf(node.left), nnf(node.right)),
+                    f_ptr<Disjunction>(nnf_h(node.left), nnf_h(node.right)),
                     f_ptr<Disjunction>(nnf_not(node.left), nnf_not(node.right))
                 );
             },
@@ -326,7 +342,7 @@ std::shared_ptr<Formula> nnf_not(std::shared_ptr<Formula> formula)
     );
 }
 
-std::shared_ptr<Formula> nnf(std::shared_ptr<Formula> formula)
+std::shared_ptr<Formula> nnf_h(std::shared_ptr<Formula> formula)
 {
     return std::visit(
         overloaded{
@@ -340,26 +356,390 @@ std::shared_ptr<Formula> nnf(std::shared_ptr<Formula> formula)
                 return nnf_not(node.operand);
             },
             [](const Conjuction &node) {
-                return f_ptr<Conjuction>(nnf(node.left), nnf(node.right));
+                return f_ptr<Conjuction>(nnf_h(node.left), nnf_h(node.right));
             },
             [](const Disjunction &node) {
-                return f_ptr<Disjunction>(nnf(node.left), nnf(node.right));
+                return f_ptr<Disjunction>(nnf_h(node.left), nnf_h(node.right));
             },
             [](const Implication &node) {
-                return f_ptr<Disjunction>(nnf_not(node.left), nnf(node.right));;
+                return f_ptr<Disjunction>(nnf_not(node.left), nnf_h(node.right));;
             },
             [](const Equivalence &node) {
                 return f_ptr<Conjuction>(
-                    f_ptr<Disjunction>(nnf(node.left), nnf_not(node.right)),
-                    f_ptr<Disjunction>(nnf_not(node.left), nnf(node.right))
+                    f_ptr<Disjunction>(nnf_h(node.left), nnf_not(node.right)),
+                    f_ptr<Disjunction>(nnf_not(node.left), nnf_h(node.right))
                 );
             },
             [](const UniversalQuantification &node) {
-                return f_ptr<UniversalQuantification>(node.var_symbol, nnf(node.formula));
+                return f_ptr<UniversalQuantification>(node.var_symbol, nnf_h(node.formula));
             },
             [](const ExistentialQuantification &node) {
-                return f_ptr<ExistentialQuantification>(node.var_symbol, nnf(node.formula));
+                return f_ptr<ExistentialQuantification>(node.var_symbol, nnf_h(node.formula));
             }
         }, *formula
     );
+}
+
+std::shared_ptr<Formula> nnf(std::shared_ptr<Formula> formula)
+{
+    return nnf_h(simplify(formula));
+}
+
+void collect_free_variables(std::shared_ptr<Term> term, std::set<std::string> &free_vars)
+{
+    std::visit(
+        overloaded{
+            [](const RationalNumber &node) {
+            },
+            [&free_vars](const Variable &node) {
+                free_vars.insert(node.symbol);
+            },
+            [&free_vars](const Addition &node) {
+                collect_free_variables(node.left, free_vars);
+                collect_free_variables(node.right, free_vars);
+            },
+            [&free_vars](const Subtraction &node) {
+                collect_free_variables(node.left, free_vars);
+                collect_free_variables(node.right, free_vars);
+            },
+            [&free_vars](const Multiplication &node) {
+                collect_free_variables(node.left, free_vars);
+                collect_free_variables(node.right, free_vars);
+            },
+            [&free_vars](const Division &node) {
+                collect_free_variables(node.left, free_vars);
+                collect_free_variables(node.right, free_vars);
+            }
+        }, *term
+    );
+}
+
+void collect_free_variables(std::shared_ptr<Atom> atom, std::set<std::string> &free_vars)
+{
+    std::visit(
+        overloaded{
+            [&free_vars](const EqualTo &node) {
+                collect_free_variables(node.left, free_vars);
+                collect_free_variables(node.right, free_vars);
+            },
+            [&free_vars](const LessThan &node) {
+                collect_free_variables(node.left, free_vars);
+                collect_free_variables(node.right, free_vars);
+            },
+            [&free_vars](const LessOrEqualTo &node) {
+                collect_free_variables(node.left, free_vars);
+                collect_free_variables(node.right, free_vars);
+            },
+            [&free_vars](const GreaterThan &node) {
+                collect_free_variables(node.left, free_vars);
+                collect_free_variables(node.right, free_vars);
+            },
+            [&free_vars](const GreaterOrEqualTo &node) {
+                collect_free_variables(node.left, free_vars);
+                collect_free_variables(node.right, free_vars);
+            },
+            [&free_vars](const NotEqualTo &node) {
+                collect_free_variables(node.left, free_vars);
+                collect_free_variables(node.right, free_vars);
+            }
+        }, *atom
+    );
+}
+
+void collect_free_variables(std::shared_ptr<Formula> formula, std::set<std::string> &free_vars)
+{
+    std::visit(
+        overloaded{
+            [&free_vars](const AtomWrapper &node) {
+                collect_free_variables(node.atom, free_vars);
+            },
+            [](const LogicConstant &node) {
+            },
+            [&free_vars](const Negation &node) {
+                collect_free_variables(node.operand, free_vars);
+            },
+            [&free_vars](const Conjuction &node) {
+                collect_free_variables(node.left, free_vars);
+                collect_free_variables(node.right, free_vars);
+            },
+            [&free_vars](const Disjunction &node) {
+                collect_free_variables(node.left, free_vars);
+                collect_free_variables(node.right, free_vars);
+            },
+            [&free_vars](const Implication &node) {
+                collect_free_variables(node.left, free_vars);
+                collect_free_variables(node.right, free_vars);
+            },
+            [&free_vars](const Equivalence &node) {
+                collect_free_variables(node.left, free_vars);
+                collect_free_variables(node.right, free_vars);
+            },
+            [&free_vars](const UniversalQuantification &node) {
+                bool is_free = free_vars.contains(node.var_symbol);
+                collect_free_variables(node.formula, free_vars);
+                if (!is_free) {
+                    free_vars.erase(node.var_symbol);
+                }
+            },
+            [&free_vars](const ExistentialQuantification &node) {
+                bool is_free = free_vars.contains(node.var_symbol);
+                collect_free_variables(node.formula, free_vars);
+                if (!is_free) {
+                    free_vars.erase(node.var_symbol);
+                }
+            }
+        }, *formula
+    );
+}
+
+std::string generate_unique_variable(const std::string &var, const std::set<std::string> &free_vars)
+{
+    std::string new_var = var;
+    unsigned counter = 0;
+    while (free_vars.contains(new_var)) {
+        new_var = var + std::to_string(counter);
+        counter++;
+    }
+    return new_var;
+}
+
+std::shared_ptr<Term> substitute(std::shared_ptr<Term> term, const std::string &var, std::shared_ptr<Term> s_term)
+{
+    return std::visit(
+        overloaded{
+            [&term](const RationalNumber &node) {
+                return term;
+            },
+            [&term, &var, &s_term](const Variable &node) {
+                return node.symbol == var ? s_term : term;
+            },
+            [&var, &s_term](const Addition &node) {
+                return t_ptr<Addition>(substitute(node.left, var, s_term), substitute(node.right, var, s_term));
+            },
+            [&var, &s_term](const Subtraction &node) {
+                return t_ptr<Subtraction>(substitute(node.left, var, s_term), substitute(node.right, var, s_term));
+            },
+            [&var, &s_term](const Multiplication &node) {
+                return t_ptr<Multiplication>(substitute(node.left, var, s_term), substitute(node.right, var, s_term));
+            },
+            [&var, &s_term](const Division &node) {
+                return t_ptr<Division>(substitute(node.left, var, s_term), substitute(node.right, var, s_term));
+            }
+        }, *term
+    );
+}
+
+std::shared_ptr<Atom> substitute(std::shared_ptr<Atom> atom, const std::string &var, std::shared_ptr<Term> s_term)
+{
+    return std::visit(
+        overloaded{
+            [&var, &s_term](const EqualTo &node) {
+                return a_ptr<EqualTo>(substitute(node.left, var, s_term), substitute(node.right, var, s_term));
+            },
+            [&var, &s_term](const LessThan &node) {
+                return a_ptr<LessThan>(substitute(node.left, var, s_term), substitute(node.right, var, s_term));
+            },
+            [&var, &s_term](const LessOrEqualTo &node) {
+                return a_ptr<LessOrEqualTo>(substitute(node.left, var, s_term), substitute(node.right, var, s_term));
+            },
+            [&var, &s_term](const GreaterThan &node) {
+                return a_ptr<GreaterThan>(substitute(node.left, var, s_term), substitute(node.right, var, s_term));
+            },
+            [&var, &s_term](const GreaterOrEqualTo &node) {
+                return a_ptr<GreaterOrEqualTo>(substitute(node.left, var, s_term), substitute(node.right, var, s_term));
+            },
+            [&var, &s_term](const NotEqualTo &node) {
+                return a_ptr<NotEqualTo>(substitute(node.left, var, s_term), substitute(node.right, var, s_term));
+            }
+        }, *atom
+    );
+}
+
+std::shared_ptr<Formula> substitute(std::shared_ptr<Formula> formula, const std::string &var, std::shared_ptr<Term> s_term)
+{
+    return std::visit(
+        overloaded{
+            [&var, &s_term](const AtomWrapper &node) {
+                return f_ptr<AtomWrapper>(substitute(node.atom, var, s_term));
+            },
+            [&formula](const LogicConstant &node) {
+                return formula;
+            },
+            [&var, &s_term](const Negation &node) {
+                return f_ptr<Negation>(substitute(node.operand, var, s_term));
+            },
+            [&var, &s_term](const Conjuction &node) {
+                return f_ptr<Conjuction>(substitute(node.left, var, s_term), substitute(node.right, var, s_term));
+            },
+            [&var, &s_term](const Disjunction &node) {
+                return f_ptr<Disjunction>(substitute(node.left, var, s_term), substitute(node.right, var, s_term));
+            },
+            [&var, &s_term](const Implication &node) {
+                return f_ptr<Implication>(substitute(node.left, var, s_term), substitute(node.right, var, s_term));
+            },
+            [&var, &s_term](const Equivalence &node) {
+                return f_ptr<Equivalence>(substitute(node.left, var, s_term), substitute(node.right, var, s_term));
+            },
+            [&formula, &var, &s_term](const UniversalQuantification &node) {
+                if (node.var_symbol == var) {
+                    return formula;
+                }
+                std::set<std::string> free_vars;
+                collect_free_variables(s_term, free_vars);
+                if (free_vars.contains(node.var_symbol)) {
+                    const auto new_var = generate_unique_variable(node.var_symbol, free_vars);
+                    const auto new_var_term = t_ptr<Variable>(new_var);
+                    const auto new_subformula = substitute(node.formula, node.var_symbol, new_var_term);
+                    return f_ptr<UniversalQuantification>(new_var, substitute(new_subformula, var, s_term));
+                } else {
+                    return f_ptr<UniversalQuantification>(node.var_symbol, substitute(node.formula, var, s_term));
+                }
+            },
+            [&formula, &var, &s_term](const ExistentialQuantification &node) {
+                if (node.var_symbol == var) {
+                    return formula;
+                }
+                std::set<std::string> free_vars;
+                collect_free_variables(s_term, free_vars);
+                if (free_vars.contains(node.var_symbol)) {
+                    const auto new_var = generate_unique_variable(node.var_symbol, free_vars);
+                    const auto new_var_term = t_ptr<Variable>(new_var);
+                    const auto new_subformula = substitute(node.formula, node.var_symbol, new_var_term);
+                    return f_ptr<ExistentialQuantification>(new_var, substitute(new_subformula, var, s_term));
+                } else {
+                    return f_ptr<ExistentialQuantification>(node.var_symbol, substitute(node.formula, var, s_term));
+                }
+            }
+        }, *formula
+    );
+}
+
+std::shared_ptr<Formula> pull_quantifiers(std::shared_ptr<Formula> formula);
+
+template<typename BinaryType, typename QuantifierType>
+std::shared_ptr<Formula> pull_quantifiers(const BinaryType &node, const QuantifierType &quant, bool quantifier_on_left)
+{
+    std::set<std::string> free_vars;
+    collect_free_variables(quantifier_on_left ? node.right : node.left, free_vars);
+    if (free_vars.contains(quant.var_symbol)) {
+        const auto new_var = generate_unique_variable(quant.var_symbol, free_vars);
+        const auto new_var_term = t_ptr<Variable>(new_var);
+        const auto new_subformula = substitute(quant.formula, quant.var_symbol, new_var_term);
+        return f_ptr<QuantifierType>(new_var, pull_quantifiers(quantifier_on_left ? f_ptr<BinaryType>(new_subformula, node.right) : f_ptr<BinaryType>(node.left, new_subformula)));
+    } else {
+        return f_ptr<QuantifierType>(quant.var_symbol, pull_quantifiers(quantifier_on_left ? f_ptr<BinaryType>(quant.formula, node.right) : f_ptr<BinaryType>(node.left, quant.formula)));
+    }
+}
+
+std::shared_ptr<Formula> pull_quantifiers(std::shared_ptr<Formula> formula)
+{
+    return std::visit(
+        overloaded{
+            [&formula](const AtomWrapper &node) {
+                return formula;
+            },
+            [&formula](const LogicConstant &node) {
+                return formula;
+            },
+            [&formula](const Negation &node) {
+                return formula;
+            },
+            [](const Conjuction &node) {
+                if (std::holds_alternative<UniversalQuantification>(*node.left) && std::holds_alternative<UniversalQuantification>(*node.right)) {
+                    const auto l = std::get<UniversalQuantification>(*node.left);
+                    const auto r = std::get<UniversalQuantification>(*node.right);
+                    if (l.var_symbol == r.var_symbol) {
+                        return f_ptr<UniversalQuantification>(l.var_symbol, pull_quantifiers(f_ptr<Conjuction>(l.formula, r.formula)));
+                    }
+                }
+
+                if (const auto *uni = std::get_if<UniversalQuantification>(node.left.get())) {
+                    return pull_quantifiers<Conjuction, UniversalQuantification>(node, *uni, true);
+                } else if (const auto *exi = std::get_if<ExistentialQuantification>(node.left.get())) {
+                    return pull_quantifiers<Conjuction, ExistentialQuantification>(node, *exi, true);
+                } else if (const auto *uni = std::get_if<UniversalQuantification>(node.right.get())) {
+                    return pull_quantifiers<Conjuction, UniversalQuantification>(node, *uni, false);
+                } else if (const auto *exi = std::get_if<ExistentialQuantification>(node.right.get())) {
+                    return pull_quantifiers<Conjuction, ExistentialQuantification>(node, *exi, false);
+                } else {
+                    return f_ptr<Conjuction>(pull_quantifiers(node.left), pull_quantifiers(node.right));
+                }
+            },
+            [&formula](const Disjunction &node) {
+                if (std::holds_alternative<ExistentialQuantification>(*node.left) && std::holds_alternative<ExistentialQuantification>(*node.right)) {
+                    const auto l = std::get<ExistentialQuantification>(*node.left);
+                    const auto r = std::get<ExistentialQuantification>(*node.right);
+                    if (l.var_symbol == r.var_symbol) {
+                        return f_ptr<UniversalQuantification>(l.var_symbol, pull_quantifiers(f_ptr<Disjunction>(l.formula, r.formula)));
+                    }
+                }
+
+                if (const auto *uni = std::get_if<UniversalQuantification>(node.left.get())) {
+                    return pull_quantifiers<Disjunction, UniversalQuantification>(node, *uni, true);
+                } else if (const auto *exi = std::get_if<ExistentialQuantification>(node.left.get())) {
+                    return pull_quantifiers<Disjunction, ExistentialQuantification>(node, *exi, true);
+                } else if (const auto *uni = std::get_if<UniversalQuantification>(node.right.get())) {
+                    return pull_quantifiers<Disjunction, UniversalQuantification>(node, *uni, false);
+                } else if (const auto *exi = std::get_if<ExistentialQuantification>(node.right.get())) {
+                    return pull_quantifiers<Disjunction, ExistentialQuantification>(node, *exi, false);
+                } else {
+                    return f_ptr<Disjunction>(pull_quantifiers(node.left), pull_quantifiers(node.right));
+                }
+            },
+            [&formula](const Implication &node) {
+                assert(!"Unreachable");
+                return formula;
+            },
+            [&formula](const Equivalence &node) {
+                assert(!"Unreachable");
+                return formula;
+            },
+            [&formula](const UniversalQuantification &node) {
+                return formula;
+            },
+            [&formula](const ExistentialQuantification &node) {
+                return formula;
+            }
+        }, *formula
+    );
+}
+
+std::shared_ptr<Formula> pnf_h(std::shared_ptr<Formula> formula)
+{
+    return std::visit(
+        overloaded{
+            [&formula](const AtomWrapper &node) {
+                return formula;
+            },
+            [&formula](const LogicConstant &node) {
+                return formula;
+            },
+            [&formula](const Negation &node) {
+                return formula;
+            },
+            [](const Conjuction &node) {
+                return pull_quantifiers(f_ptr<Conjuction>(pnf_h(node.left), pnf_h(node.right)));
+            },
+            [](const Disjunction &node) {
+                return pull_quantifiers(f_ptr<Disjunction>(pnf_h(node.left), pnf_h(node.right)));
+            },
+            [&formula](const Implication &node) {
+                assert(!"Unreachable");
+                return formula;            },
+            [&formula](const Equivalence &node) {
+                assert(!"Unreachable");
+                return formula;               },
+            [](const UniversalQuantification &node) {
+                return f_ptr<UniversalQuantification>(node.var_symbol, pnf_h(node.formula));
+            },
+            [](const ExistentialQuantification &node) {
+                return f_ptr<UniversalQuantification>(node.var_symbol, pnf_h(node.formula));
+            }
+        }, *formula
+    );
+}
+
+std::shared_ptr<Formula> pnf(std::shared_ptr<Formula> formula)
+{
+    return pnf_h(nnf(formula));
 }

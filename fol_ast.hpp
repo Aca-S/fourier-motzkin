@@ -3,6 +3,7 @@
 
 #include "fraction.hpp"
 
+#include <string>
 #include <memory>
 #include <variant>
 
@@ -15,7 +16,7 @@ struct RationalNumber
 
 struct Variable
 {
-    char symbol;
+    std::string symbol;
 };
 
 struct Addition
@@ -117,13 +118,13 @@ struct Equivalence
 
 struct UniversalQuantification
 {
-    char var_symbol;
+    std::string var_symbol;
     std::shared_ptr<Formula> formula;
 };
 
 struct ExistentialQuantification
 {
-    char var_symbol;
+    std::string var_symbol;
     std::shared_ptr<Formula> formula;
 };
 
@@ -136,5 +137,8 @@ std::string formula_to_string(const Formula &formula);
 
 std::shared_ptr<Formula> simplify(std::shared_ptr<Formula> formula);
 std::shared_ptr<Formula> nnf(std::shared_ptr<Formula> formula);
+std::shared_ptr<Formula> pnf(std::shared_ptr<Formula> formula);
+
+std::shared_ptr<Formula> substitute(std::shared_ptr<Formula> formula, const std::string &var, std::shared_ptr<Term> s_term);
 
 #endif // FOL_AST_HPP

@@ -18,7 +18,7 @@
 }
 
 %token <int> INT_T
-%token <char> VAR_T
+%token <std::string> VAR_T
 %token LEQ_T GEQ_T NEQ_T TRUE_T FALSE_T IMPL_T EQUI_T
 
 %left '!' '?' '.'
