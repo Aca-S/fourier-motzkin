@@ -133,6 +133,32 @@ struct Formula : public std::variant<AtomWrapper, LogicConstant, Negation, Conju
     using variant<AtomWrapper, LogicConstant, Negation, Conjuction, Disjunction, Implication, Equivalence, UniversalQuantification, ExistentialQuantification>::variant;
 };
 
+// For overloaded lambdas...
+template <typename... Ts> struct overloaded : Ts...
+{
+    using Ts::operator()...;
+};
+
+template <typename... Ts> overloaded(Ts...) -> overloaded<Ts...>;
+
+template <typename T, typename... Args>
+std::shared_ptr<Term> t_ptr(Args&&... args)
+{
+    return std::make_shared<Term>(T(args...));
+}
+
+template <typename T, typename... Args>
+std::shared_ptr<Atom> a_ptr(Args&&... args)
+{
+    return std::make_shared<Atom>(T(args...));
+}
+
+template <typename T, typename... Args>
+std::shared_ptr<Formula> f_ptr(Args&&... args)
+{
+    return std::make_shared<Formula>(T(args...));
+}
+
 std::string formula_to_string(const Formula &formula);
 
 // Removes logical constants from the given formula or transforms it to a constant itself.

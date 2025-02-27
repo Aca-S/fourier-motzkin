@@ -5,32 +5,6 @@
 #include <cassert>
 #include <set>
 
-// For overloaded lambdas...
-template <typename... Ts> struct overloaded : Ts...
-{
-    using Ts::operator()...;
-};
-
-template <typename... Ts> overloaded(Ts...) -> overloaded<Ts...>;
-
-template <typename T, typename... Args>
-std::shared_ptr<Term> t_ptr(Args&&... args)
-{
-    return std::make_shared<Term>(T(args...));
-}
-
-template <typename T, typename... Args>
-std::shared_ptr<Atom> a_ptr(Args&&... args)
-{
-    return std::make_shared<Atom>(T(args...));
-}
-
-template <typename T, typename... Args>
-std::shared_ptr<Formula> f_ptr(Args&&... args)
-{
-    return std::make_shared<Formula>(T(args...));
-}
-
 unsigned precedence(const Term &term)
 {
     return std::visit(
@@ -492,6 +466,43 @@ void collect_free_variables(std::shared_ptr<Formula> formula, std::set<std::stri
     );
 }
 
+void collect_quantified_variables(std::shared_ptr<Formula> formula, std::set<std::string> &quantified_vars)
+{
+    std::visit(
+        overloaded{
+            [](const AtomWrapper &node) {
+            },
+            [](const LogicConstant &node) {
+            },
+            [&quantified_vars](const Negation &node) {
+                collect_quantified_variables(node.operand, quantified_vars);
+            },
+            [&quantified_vars](const Conjuction &node) {
+                collect_quantified_variables(node.left, quantified_vars);
+                collect_quantified_variables(node.right, quantified_vars);
+            },
+            [&quantified_vars](const Disjunction &node) {
+                collect_quantified_variables(node.left, quantified_vars);
+                collect_quantified_variables(node.right, quantified_vars);
+            },
+            [&quantified_vars](const Implication &node) {
+                collect_quantified_variables(node.left, quantified_vars);
+                collect_quantified_variables(node.right, quantified_vars);
+            },
+            [&quantified_vars](const Equivalence &node) {
+                collect_quantified_variables(node.left, quantified_vars);
+                collect_quantified_variables(node.right, quantified_vars);
+            },
+            [&quantified_vars](const UniversalQuantification &node) {
+                quantified_vars.insert(node.var_symbol);
+            },
+            [&quantified_vars](const ExistentialQuantification &node) {
+                quantified_vars.insert(node.var_symbol);
+            }
+        }, *formula
+    );
+}
+
 std::string generate_unique_variable(const std::string &var, const std::set<std::string> &free_vars)
 {
     std::string new_var = var;
@@ -631,6 +642,20 @@ std::shared_ptr<Formula> pull_quantifiers(const BinaryType &node, const Quantifi
     }
 }
 
+template<typename QuantifierType>
+std::shared_ptr<Formula> pull_quantifiers(const QuantifierType &quant)
+{
+    std::set<std::string> quantified_vars;
+    collect_quantified_variables(quant.formula, quantified_vars);
+    if (quantified_vars.contains(quant.var_symbol)) {
+        const auto new_var = generate_unique_variable(quant.var_symbol, quantified_vars);
+        const auto new_var_term = t_ptr<Variable>(new_var);
+        return f_ptr<QuantifierType>(new_var, pnf_h(substitute(quant.formula, quant.var_symbol, new_var_term)));
+    } else {
+        return f_ptr<QuantifierType>(quant.var_symbol, pnf_h(quant.formula));
+    }
+}
+
 std::shared_ptr<Formula> pull_quantifiers(std::shared_ptr<Formula> formula)
 {
     return std::visit(
@@ -732,10 +757,10 @@ std::shared_ptr<Formula> pnf_h(std::shared_ptr<Formula> formula)
                 return formula;
             },
             [](const UniversalQuantification &node) {
-                return f_ptr<UniversalQuantification>(node.var_symbol, pnf_h(node.formula));
+                return pull_quantifiers<UniversalQuantification>(node);
             },
             [](const ExistentialQuantification &node) {
-                return f_ptr<UniversalQuantification>(node.var_symbol, pnf_h(node.formula));
+                return pull_quantifiers<ExistentialQuantification>(node);
             }
         }, *formula
     );

@@ -39,17 +39,17 @@ int main(int argc, char *argv[])
     //     {c1, c2}
     // };
 
-    Constraint<Fraction> c1 {
-        {Fraction {1}, Fraction {1}}, Constraint<Fraction>::Relation::GT, Fraction {8}
-    };
-
-    Constraint<Fraction> c2 {
-        {Fraction {1}, Fraction {1}}, Constraint<Fraction>::Relation::LT, Fraction {7}
-    };
-
-    ConstraintConjuction<Fraction> cc {
-        {c1, c2}
-    };
+    // Constraint<Fraction> c1 {
+    //     {Fraction {1}, Fraction {1}}, Constraint<Fraction>::Relation::GT, Fraction {8}
+    // };
+    //
+    // Constraint<Fraction> c2 {
+    //     {Fraction {1}, Fraction {1}}, Constraint<Fraction>::Relation::LT, Fraction {7}
+    // };
+    //
+    // ConstraintConjuction<Fraction> cc {
+    //     {c1, c2}
+    // };
 
     // Constraint<double> c1 {
     //     {1, 1}, Constraint<double>::Relation::GT, 8
@@ -63,8 +63,8 @@ int main(int argc, char *argv[])
     //     {c1, c2}
     // };
 
-    const auto is_sat = cc.is_satisfiable();
-    std::cout << "Is satisfiable: " << (is_sat ? "true" : "false") << std::endl;
+    // const auto is_sat = cc.is_satisfiable();
+    // std::cout << "Is satisfiable: " << (is_sat ? "true" : "false") << std::endl;
 
     // FOLDriver driver;
     // const auto formula = driver.parse("!x.~!y.!z.~~(2*(x + 1) < 3*y & 3*x <= 2*y & (!y.7*y < 5*z) => 14*x < 10*z)");
@@ -79,15 +79,15 @@ int main(int argc, char *argv[])
     //     std::cout << "Formula is invalid" << std::endl;
     // }
 
-    FOLDriver driver;
-    //const auto formula = driver.parse("!x.~!y.!z.~~(2*(x + 1) < 3*y & 3*x <= 2*y & (!y.7*y < 5*z) | ~T => 14*x < 10*z)");
-    const auto formula = driver.parse("!x.!y.!z.2*x<3*y & 3*x<2*y & 7*y<5*z => 14*x<10*z & q < 3");
-    if (formula) {
-        std::cout << formula_to_string(*close(dnf(formula))) << std::endl;
-    }
+    // FOLDriver driver;
+    // //const auto formula = driver.parse("!x.~!y.!z.~~(2*(x + 1) < 3*y & 3*x <= 2*y & (!y.7*y < 5*z) | ~T => 14*x < 10*z)");
+    // const auto formula = driver.parse("!x.!y.!z.2*x<3*y & 3*x<2*y & 7*y<5*z => 14*x<10*z & q < 3");
+    // if (formula) {
+    //     std::cout << formula_to_string(*close(dnf(formula))) << std::endl;
+    // }
 
     TheoremProver prover;
-    std::cout << prover.is_theorem("!x.!y.!z.2*x<3*y & 3*x<2*y & 7*y<5*z => 14*x<10*z") << std::endl;
+    std::cout << prover.is_theorem("!x.!y.!z.x < y & y < z => x < z") << std::endl;
 
     return 0;
 }
