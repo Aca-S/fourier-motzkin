@@ -2,9 +2,9 @@
 #include "fourier_motzkin.hpp"
 
 #include <stdexcept>
-#include <map>
+#include <cassert>
 
-std::map<std::string, std::size_t> collect_variables(std::shared_ptr<Formula> formula);
+VariableMapping collect_variables(std::shared_ptr<Formula> formula);
 std::shared_ptr<Formula> simplify_constraints(std::shared_ptr<Formula> formula);
 
 bool TheoremProver::is_theorem(const std::string &fol_formula) const
@@ -18,31 +18,60 @@ bool TheoremProver::is_theorem(const std::string &fol_formula) const
     std::cout << formula_to_string(*formula) << std::endl;
 
     const auto var_map = collect_variables(formula);
-    for (const auto &[k, v] : var_map) {
-        std::cout << k << ": " << v << std::endl;
-    }
+    std::cout << var_map.size() << std::endl;
 
     return false;
 }
 
-std::map<std::string, std::size_t> collect_variables(std::shared_ptr<Formula> formula)
+void VariableMapping::add_variable(const std::string &variable_symbol)
 {
-    std::map<std::string, std::size_t> var_map;
+    if (!m_symbol_to_number.contains(variable_symbol)) {
+        const auto variable_number = size();
+        m_number_to_symbol.insert({variable_number, variable_symbol});
+        m_symbol_to_number.insert({variable_symbol, variable_number});
+    }
+}
 
-    std::size_t counter = 0;
+void VariableMapping::remove_variable(const std::string &variable_symbol)
+{
+    assert(m_symbol_to_number.contains(variable_symbol));
+    const auto variable_number = get_variable_number(variable_symbol);
+    m_symbol_to_number.erase(variable_symbol);
+    m_number_to_symbol.erase(variable_number);
+}
+
+std::size_t VariableMapping::get_variable_number(const std::string &variable_symbol) const
+{
+    assert(m_symbol_to_number.contains(variable_symbol));
+    return m_symbol_to_number.find(variable_symbol)->second;
+}
+
+std::string VariableMapping::get_variable_symbol(std::size_t variable_number) const
+{
+    assert(m_number_to_symbol.contains(variable_number));
+    return m_number_to_symbol.find(variable_number)->second;
+}
+
+std::size_t VariableMapping::size() const
+{
+    return m_symbol_to_number.size();
+}
+
+VariableMapping collect_variables(std::shared_ptr<Formula> formula)
+{
+    VariableMapping var_map;
     auto current = formula;
     while (true) {
         if (const auto *uni = std::get_if<UniversalQuantification>(current.get())) {
-            var_map[uni->var_symbol] = counter++;
+            var_map.add_variable(uni->var_symbol);
             current = uni->formula;
         } else if (const auto *exi = std::get_if<ExistentialQuantification>(current.get())) {
-            var_map[exi->var_symbol] = counter++;
-            current = exi->formula;
+            var_map.add_variable(exi->var_symbol);
+            current = uni->formula;
         } else {
             break;
         }
     }
-
     return var_map;
 }
 
