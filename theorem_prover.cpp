@@ -5,6 +5,7 @@
 #include <cassert>
 
 VariableMapping collect_variables(std::shared_ptr<Formula> formula);
+std::shared_ptr<Formula> convert_universal_to_existential(std::shared_ptr<Formula> formula);
 std::shared_ptr<Formula> simplify_constraints(std::shared_ptr<Formula> formula);
 
 bool TheoremProver::is_theorem(const std::string &fol_formula) const
@@ -14,10 +15,11 @@ bool TheoremProver::is_theorem(const std::string &fol_formula) const
         throw std::invalid_argument("Parsing failed: \"" + fol_formula + "\" is not a valid first order logic formula");
     }
 
-    formula = simplify_constraints(close(pnf(formula)));
-    std::cout << formula_to_string(*formula) << std::endl;
-
+    formula = close(pnf(formula));
     const auto var_map = collect_variables(formula);
+    formula = convert_universal_to_existential(formula);
+
+    std::cout << formula_to_string(*formula) << std::endl;
     std::cout << var_map.size() << std::endl;
 
     return false;
@@ -73,6 +75,46 @@ VariableMapping collect_variables(std::shared_ptr<Formula> formula)
         }
     }
     return var_map;
+}
+
+std::shared_ptr<Formula> convert_universal_to_existential(std::shared_ptr<Formula> formula)
+{
+    return std::visit(
+        overloaded{
+            [&formula](const AtomWrapper &node) {
+                return formula;
+            },
+            [&formula](const LogicConstant &node) {
+                return formula;
+            },
+            [](const Negation &node) {
+                return f_ptr<Negation>(convert_universal_to_existential(node.operand));
+            },
+            [](const Conjuction &node) {
+                return f_ptr<Conjuction>(convert_universal_to_existential(node.left), convert_universal_to_existential(node.right));
+            },
+            [](const Disjunction &node) {
+                return f_ptr<Disjunction>(convert_universal_to_existential(node.left), convert_universal_to_existential(node.right));
+            },
+            [](const Implication &node) {
+                return f_ptr<Implication>(convert_universal_to_existential(node.left), convert_universal_to_existential(node.right));
+            },
+            [](const Equivalence &node) {
+                return f_ptr<Equivalence>(convert_universal_to_existential(node.left), convert_universal_to_existential(node.right));
+            },
+            [](const UniversalQuantification &node) {
+                const auto subformula = convert_universal_to_existential(node.formula);
+                if (const auto *neg = std::get_if<Negation>(subformula.get())) {
+                    return f_ptr<Negation>(f_ptr<ExistentialQuantification>(node.var_symbol, neg->operand));
+                } else {
+                    return f_ptr<Negation>(f_ptr<ExistentialQuantification>(node.var_symbol, f_ptr<Negation>(subformula)));
+                }
+            },
+            [](const ExistentialQuantification &node) {
+                return f_ptr<ExistentialQuantification>(node.var_symbol, convert_universal_to_existential(node.formula));
+            }
+        }, *formula
+    );
 }
 
 std::shared_ptr<Formula> simplify_constraints(std::shared_ptr<Atom> atom)
