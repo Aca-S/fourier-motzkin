@@ -4,9 +4,7 @@
 #include <stdexcept>
 #include <cassert>
 
-VariableMapping collect_variables(std::shared_ptr<Formula> formula);
-std::shared_ptr<Formula> convert_universal_to_existential(std::shared_ptr<Formula> formula);
-std::shared_ptr<Formula> simplify_constraints(std::shared_ptr<Formula> formula);
+std::shared_ptr<Formula> eliminate_quantifiers(std::shared_ptr<Formula> formula, VariableMapping &var_map);
 
 bool TheoremProver::is_theorem(const std::string &fol_formula) const
 {
@@ -16,8 +14,10 @@ bool TheoremProver::is_theorem(const std::string &fol_formula) const
     }
 
     formula = close(pnf(formula));
-    const auto var_map = collect_variables(formula);
-    formula = convert_universal_to_existential(formula);
+    std::cout << formula_to_string(*formula) << std::endl;
+
+    VariableMapping var_map;
+    formula = eliminate_quantifiers(formula, var_map);
 
     std::cout << formula_to_string(*formula) << std::endl;
     std::cout << var_map.size() << std::endl;
@@ -57,64 +57,6 @@ std::string VariableMapping::get_variable_symbol(std::size_t variable_number) co
 std::size_t VariableMapping::size() const
 {
     return m_symbol_to_number.size();
-}
-
-VariableMapping collect_variables(std::shared_ptr<Formula> formula)
-{
-    VariableMapping var_map;
-    auto current = formula;
-    while (true) {
-        if (const auto *uni = std::get_if<UniversalQuantification>(current.get())) {
-            var_map.add_variable(uni->var_symbol);
-            current = uni->formula;
-        } else if (const auto *exi = std::get_if<ExistentialQuantification>(current.get())) {
-            var_map.add_variable(exi->var_symbol);
-            current = uni->formula;
-        } else {
-            break;
-        }
-    }
-    return var_map;
-}
-
-std::shared_ptr<Formula> convert_universal_to_existential(std::shared_ptr<Formula> formula)
-{
-    return std::visit(
-        overloaded{
-            [&formula](const AtomWrapper &node) {
-                return formula;
-            },
-            [&formula](const LogicConstant &node) {
-                return formula;
-            },
-            [](const Negation &node) {
-                return f_ptr<Negation>(convert_universal_to_existential(node.operand));
-            },
-            [](const Conjuction &node) {
-                return f_ptr<Conjuction>(convert_universal_to_existential(node.left), convert_universal_to_existential(node.right));
-            },
-            [](const Disjunction &node) {
-                return f_ptr<Disjunction>(convert_universal_to_existential(node.left), convert_universal_to_existential(node.right));
-            },
-            [](const Implication &node) {
-                return f_ptr<Implication>(convert_universal_to_existential(node.left), convert_universal_to_existential(node.right));
-            },
-            [](const Equivalence &node) {
-                return f_ptr<Equivalence>(convert_universal_to_existential(node.left), convert_universal_to_existential(node.right));
-            },
-            [](const UniversalQuantification &node) {
-                const auto subformula = convert_universal_to_existential(node.formula);
-                if (const auto *neg = std::get_if<Negation>(subformula.get())) {
-                    return f_ptr<Negation>(f_ptr<ExistentialQuantification>(node.var_symbol, neg->operand));
-                } else {
-                    return f_ptr<Negation>(f_ptr<ExistentialQuantification>(node.var_symbol, f_ptr<Negation>(subformula)));
-                }
-            },
-            [](const ExistentialQuantification &node) {
-                return f_ptr<ExistentialQuantification>(node.var_symbol, convert_universal_to_existential(node.formula));
-            }
-        }, *formula
-    );
 }
 
 std::shared_ptr<Formula> simplify_constraints(std::shared_ptr<Atom> atom)
@@ -212,6 +154,51 @@ std::shared_ptr<Formula> simplify_constraints(std::shared_ptr<Formula> formula)
             },
             [](const ExistentialQuantification &node) {
                 return f_ptr<ExistentialQuantification>(node.var_symbol, simplify_constraints(node.formula));
+            }
+        }, *formula
+    );
+}
+
+std::shared_ptr<Formula> eliminate_quantifiers(std::shared_ptr<Formula> formula, VariableMapping &var_map)
+{
+    return std::visit(
+        overloaded{
+            [&formula](const AtomWrapper &node) {
+                return formula;
+            },
+            [&formula](const LogicConstant &node) {
+                return formula;
+            },
+            [&formula](const Negation &node) {
+                return formula;
+            },
+            [&formula](const Conjuction &node) {
+                return formula;
+            },
+            [&formula](const Disjunction &node) {
+                return formula;
+            },
+            [&formula](const Implication &node) {
+                assert(!"Unreachable");
+                return formula;
+            },
+            [&formula](const Equivalence &node) {
+                assert(!"Unreachable");
+                return formula;
+            },
+            [&var_map](const UniversalQuantification &node) {
+                var_map.add_variable(node.var_symbol);
+                const auto subformula = eliminate_quantifiers(node.formula, var_map);
+                const auto base = dnf(simplify_constraints(nnf(f_ptr<Negation>(subformula))));
+                var_map.remove_variable(node.var_symbol);
+                return f_ptr<Negation>(base);
+            },
+            [&var_map](const ExistentialQuantification &node) {
+                var_map.add_variable(node.var_symbol);
+                const auto subformula = eliminate_quantifiers(node.formula, var_map);
+                const auto base = dnf(simplify_constraints(nnf(subformula)));
+                var_map.remove_variable(node.var_symbol);
+                return base;
             }
         }, *formula
     );
