@@ -31,7 +31,8 @@ struct Subtraction
 
 struct Multiplication
 {
-    std::shared_ptr<Term> left, right;
+    std::shared_ptr<RationalNumber> coef;
+    std::shared_ptr<Variable> var;
 };
 
 struct Term : public std::variant<RationalNumber, Variable, Addition, Subtraction, Multiplication>

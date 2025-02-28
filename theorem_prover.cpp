@@ -159,6 +159,8 @@ std::shared_ptr<Formula> simplify_constraints(std::shared_ptr<Formula> formula)
     );
 }
 
+std::vector<ConstraintConjuction<Fraction>> disjunction_to_constraints(std::shared_ptr<Formula> formula, const VariableMapping &var_map);
+
 std::shared_ptr<Formula> eliminate_quantifiers(std::shared_ptr<Formula> formula, VariableMapping &var_map)
 {
     return std::visit(
@@ -190,48 +192,79 @@ std::shared_ptr<Formula> eliminate_quantifiers(std::shared_ptr<Formula> formula,
                 var_map.add_variable(node.var_symbol);
                 const auto subformula = eliminate_quantifiers(node.formula, var_map);
                 const auto base = dnf(simplify_constraints(nnf(f_ptr<Negation>(subformula))));
-                var_map.remove_variable(node.var_symbol);
+                const auto constraints = disjunction_to_constraints(base, var_map);
+                //var_map.remove_variable(node.var_symbol);
                 return f_ptr<Negation>(base);
             },
             [&var_map](const ExistentialQuantification &node) {
                 var_map.add_variable(node.var_symbol);
                 const auto subformula = eliminate_quantifiers(node.formula, var_map);
                 const auto base = dnf(simplify_constraints(nnf(subformula)));
-                // Convert to FM form
+                const auto constraints = disjunction_to_constraints(base, var_map);
                 // Elim. var
                 // Convert back to AST form
-                var_map.remove_variable(node.var_symbol);
+                //var_map.remove_variable(node.var_symbol);
                 return base;
             }
         }, *formula
     );
 }
 
-void collect_coefficients(std::shared_ptr<Term> term, std::vector<Fraction> &lhs, Fraction &rhs, bool on_left)
+void collect_coefficients(std::shared_ptr<Term> term, std::vector<Fraction> &lhs, Fraction &rhs, const VariableMapping &var_map, bool flip_sign)
 {
-
+    std::visit(
+        overloaded{
+            [&rhs, flip_sign](const RationalNumber &node) {
+                rhs = flip_sign ? rhs + node.value : rhs - node.value;
+            },
+            [&lhs, &var_map, flip_sign](const Variable &node) {
+                const auto var_num = var_map.get_variable_number(node.symbol);
+                lhs[var_num] = flip_sign ? lhs[var_num] - 1 : lhs[var_num] + 1;
+            },
+            [&lhs, &rhs, &var_map, flip_sign](const Addition &node) {
+                collect_coefficients(node.left, lhs, rhs, var_map, flip_sign);
+                collect_coefficients(node.right, lhs, rhs, var_map, flip_sign);
+            },
+            [&lhs, &rhs, &var_map, flip_sign](const Subtraction &node) {
+                collect_coefficients(node.left, lhs, rhs, var_map, !flip_sign);
+                collect_coefficients(node.left, lhs, rhs, var_map, !flip_sign);
+            },
+            [&lhs, &var_map, flip_sign](const Multiplication &node) {
+                const auto var_num = var_map.get_variable_number(node.var->symbol);
+                lhs[var_num] = flip_sign ? lhs[var_num] - node.coef->value : lhs[var_num] + node.coef->value;
+            }
+        }, *term
+    );
 }
 
 Constraint<Fraction> atom_to_constraint(std::shared_ptr<Atom> atom, const VariableMapping &var_map)
 {
     return std::visit(
         overloaded{
-            [](const EqualTo &node) {
-                std::vector<Fraction> lhs;
+            [&var_map](const EqualTo &node) {
+                std::vector<Fraction> lhs(var_map.size());
                 Fraction rhs;
-                collect_coefficients(node.left, lhs, rhs, true);
-                collect_coefficients(node.right, lhs, rhs, false);
+                collect_coefficients(node.left, lhs, rhs, var_map, false);
+                collect_coefficients(node.right, lhs, rhs, var_map, true);
                 return Constraint<Fraction>(lhs, Constraint<Fraction>::Relation::EQ, rhs);
             },
-            [](const LessThan &node) {
-                return Constraint<Fraction>({}, Constraint<Fraction>::Relation::LT, Fraction{});
+            [&var_map](const LessThan &node) {
+                std::vector<Fraction> lhs(var_map.size());
+                Fraction rhs;
+                collect_coefficients(node.left, lhs, rhs, var_map, false);
+                collect_coefficients(node.right, lhs, rhs, var_map, true);
+                return Constraint<Fraction>(lhs, Constraint<Fraction>::Relation::LT, rhs);
             },
             [](const LessOrEqualTo &node) {
                 assert(!"Unreachable");
                 return Constraint<Fraction>({}, Constraint<Fraction>::Relation::EQ, Fraction{});
             },
-            [](const GreaterThan &node) {
-                return Constraint<Fraction>({}, Constraint<Fraction>::Relation::GT, Fraction{});
+            [&var_map](const GreaterThan &node) {
+                std::vector<Fraction> lhs(var_map.size());
+                Fraction rhs;
+                collect_coefficients(node.left, lhs, rhs, var_map, false);
+                collect_coefficients(node.right, lhs, rhs, var_map, true);
+                return Constraint<Fraction>(lhs, Constraint<Fraction>::Relation::GT, rhs);
             },
             [](const GreaterOrEqualTo &node) {
                 assert(!"Unreachable");
@@ -242,5 +275,100 @@ Constraint<Fraction> atom_to_constraint(std::shared_ptr<Atom> atom, const Variab
                 return Constraint<Fraction>({}, Constraint<Fraction>::Relation::EQ, Fraction{});
             }
         }, *atom
+    );
+}
+
+ConstraintConjuction<Fraction> conjuction_to_constraints(std::shared_ptr<Formula> formula, const VariableMapping &var_map)
+{
+    return std::visit(
+        overloaded{
+            [&var_map](const AtomWrapper &node) {
+                return ConstraintConjuction<Fraction>({atom_to_constraint(node.atom, var_map)});
+            },
+            [](const LogicConstant &node) {
+                assert("!Unreachable");
+                return ConstraintConjuction<Fraction>({});
+            },
+            [](const Negation &node) {
+                assert("!Unreachable");
+                return ConstraintConjuction<Fraction>({});
+            },
+            [&var_map](const Conjuction &node) {
+                const auto left = conjuction_to_constraints(node.left, var_map).get_constraints();
+                const auto right = conjuction_to_constraints(node.right, var_map).get_constraints();
+                std::vector<Constraint<Fraction>> left_right_concat;
+                left_right_concat.reserve(left.size() + right.size());
+                left_right_concat.insert(left_right_concat.end(), left.begin(), left.end());
+                left_right_concat.insert(left_right_concat.end(), right.begin(), right.end());
+                return ConstraintConjuction<Fraction>(left_right_concat);
+            },
+            [](const Disjunction &node) {
+                assert("!Unreachable");
+                return ConstraintConjuction<Fraction>({});
+            },
+            [](const Implication &node) {
+                assert("!Unreachable");
+                return ConstraintConjuction<Fraction>({});
+            },
+            [](const Equivalence &node) {
+                assert("!Unreachable");
+                return ConstraintConjuction<Fraction>({});
+            },
+            [](const UniversalQuantification &node) {
+                assert("!Unreachable");
+                return ConstraintConjuction<Fraction>({});
+            },
+            [](const ExistentialQuantification &node) {
+                assert("!Unreachable");
+                return ConstraintConjuction<Fraction>({});
+            }
+        }, *formula
+    );
+}
+
+std::vector<ConstraintConjuction<Fraction>> disjunction_to_constraints(std::shared_ptr<Formula> formula, const VariableMapping &var_map)
+{
+    return std::visit(
+        overloaded{
+            [&formula, &var_map](const AtomWrapper &node) {
+                return std::vector<ConstraintConjuction<Fraction>>({conjuction_to_constraints(formula, var_map)});
+            },
+            [](const LogicConstant &node) {
+                assert("!Unreachable");
+                return std::vector<ConstraintConjuction<Fraction>>();
+            },
+            [](const Negation &node) {
+                assert(!"Unreachable");
+                return std::vector<ConstraintConjuction<Fraction>>();
+            },
+            [&formula, &var_map](const Conjuction &node) {
+                return std::vector<ConstraintConjuction<Fraction>>({conjuction_to_constraints(formula, var_map)});
+            },
+            [&var_map](const Disjunction &node) {
+                const auto left = disjunction_to_constraints(node.left, var_map);
+                const auto right = disjunction_to_constraints(node.right, var_map);
+                std::vector<ConstraintConjuction<Fraction>> left_right_concat;
+                left_right_concat.reserve(left.size() + right.size());
+                left_right_concat.insert(left_right_concat.end(), left.begin(), left.end());
+                left_right_concat.insert(left_right_concat.end(), right.begin(), right.end());
+                return left_right_concat;
+            },
+            [](const Implication &node) {
+                assert(!"Unreachable");
+                return std::vector<ConstraintConjuction<Fraction>>();
+            },
+            [](const Equivalence &node) {
+                assert(!"Unreachable");
+                return std::vector<ConstraintConjuction<Fraction>>();
+            },
+            [](const UniversalQuantification &node) {
+                assert(!"Unreachable");
+                return std::vector<ConstraintConjuction<Fraction>>();
+            },
+            [](const ExistentialQuantification &node) {
+                assert(!"Unreachable");
+                return std::vector<ConstraintConjuction<Fraction>>();
+            }
+        }, *formula
     );
 }

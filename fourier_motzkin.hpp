@@ -41,6 +41,7 @@ public:
     ConstraintConjuction(const std::vector<Constraint<T>> &constraints);
 
     bool is_satisfiable() const;
+    const std::vector<Constraint<T>>& get_constraints() const;
 
 private:
     std::vector<Constraint<T>> m_constraints;
@@ -174,6 +175,12 @@ void ConstraintConjuction<T>::eliminate_variable_by_inequality(std::vector<Const
         }
     }
     conjuction.erase(conjuction.cbegin() + conjuction.size() - to_remove.size(), conjuction.cend());
+}
+
+template <typename T>
+const std::vector<Constraint<T>>& ConstraintConjuction<T>::get_constraints() const
+{
+    return m_constraints;
 }
 
 #endif // FOURIER_MOTZKIN_HPP
