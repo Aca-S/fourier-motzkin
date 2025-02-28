@@ -9,6 +9,7 @@
     class Atom;
     class Formula;
     #include <memory>
+    #include "fraction.hpp"
 }
 
 %param { FOLDriver &driver }
@@ -31,6 +32,7 @@
 %left '+' '-'
 %left '*' '/'
 
+%nterm <Fraction> fraction
 %nterm <std::shared_ptr<Term>> term
 %nterm <std::shared_ptr<Atom>> atom
 %nterm <std::shared_ptr<Formula>> formula
@@ -70,10 +72,13 @@ term:
     term '+' term { $$ = std::make_shared<Term>(Addition(std::move($1), std::move($3))); }
 |   term '-' term { $$ = std::make_shared<Term>(Subtraction(std::move($1), std::move($3))); }
 |   term '*' term { $$ = std::make_shared<Term>(Multiplication(std::move($1), std::move($3))); }
-|   term '/' term { $$ = std::make_shared<Term>(Division(std::move($1), std::move($3))); }
-|   '(' term ')' { $$ = std::move($2); }
 |   VAR_T { $$ = std::make_shared<Term>(Variable($1)); }
-|   INT_T { $$ = std::make_shared<Term>(RationalNumber(Fraction($1))); }
+|   fraction { $$ = std::make_shared<Term>(RationalNumber($1)); }
+;
+
+fraction:
+    INT_T { $$ = Fraction($1); }
+|   INT_T '/' INT_T { $$ = Fraction($1, $3); }
 ;
 
 %%

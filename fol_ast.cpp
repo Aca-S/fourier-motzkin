@@ -23,9 +23,6 @@ unsigned precedence(const Term &term)
             },
             [](const Multiplication &node) {
                 return 1;
-            },
-            [](const Division &node) {
-                return 1;
             }
         }, term
     );
@@ -62,9 +59,6 @@ std::string term_to_string(const Term &term)
             },
             [&term](const Multiplication &node) {
                 return term_to_string(*node.left, term) + "*" + term_to_string(*node.right, term);
-            },
-            [&term](const Division &node) {
-                return term_to_string(*node.left, term) + "/" + term_to_string(*node.right, term);
             }
         }, term
     );
@@ -379,10 +373,6 @@ void collect_free_variables(std::shared_ptr<Term> term, std::set<std::string> &f
             [&free_vars](const Multiplication &node) {
                 collect_free_variables(node.left, free_vars);
                 collect_free_variables(node.right, free_vars);
-            },
-            [&free_vars](const Division &node) {
-                collect_free_variables(node.left, free_vars);
-                collect_free_variables(node.right, free_vars);
             }
         }, *term
     );
@@ -532,9 +522,6 @@ std::shared_ptr<Term> substitute(std::shared_ptr<Term> term, const std::string &
             },
             [&var, &s_term](const Multiplication &node) {
                 return t_ptr<Multiplication>(substitute(node.left, var, s_term), substitute(node.right, var, s_term));
-            },
-            [&var, &s_term](const Division &node) {
-                return t_ptr<Division>(substitute(node.left, var, s_term), substitute(node.right, var, s_term));
             }
         }, *term
     );

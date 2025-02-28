@@ -197,9 +197,50 @@ std::shared_ptr<Formula> eliminate_quantifiers(std::shared_ptr<Formula> formula,
                 var_map.add_variable(node.var_symbol);
                 const auto subformula = eliminate_quantifiers(node.formula, var_map);
                 const auto base = dnf(simplify_constraints(nnf(subformula)));
+                // Convert to FM form
+                // Elim. var
+                // Convert back to AST form
                 var_map.remove_variable(node.var_symbol);
                 return base;
             }
         }, *formula
+    );
+}
+
+void collect_coefficients(std::shared_ptr<Term> term, std::vector<Fraction> &lhs, Fraction &rhs, bool on_left)
+{
+
+}
+
+Constraint<Fraction> atom_to_constraint(std::shared_ptr<Atom> atom, const VariableMapping &var_map)
+{
+    return std::visit(
+        overloaded{
+            [](const EqualTo &node) {
+                std::vector<Fraction> lhs;
+                Fraction rhs;
+                collect_coefficients(node.left, lhs, rhs, true);
+                collect_coefficients(node.right, lhs, rhs, false);
+                return Constraint<Fraction>(lhs, Constraint<Fraction>::Relation::EQ, rhs);
+            },
+            [](const LessThan &node) {
+                return Constraint<Fraction>({}, Constraint<Fraction>::Relation::LT, Fraction{});
+            },
+            [](const LessOrEqualTo &node) {
+                assert(!"Unreachable");
+                return Constraint<Fraction>({}, Constraint<Fraction>::Relation::EQ, Fraction{});
+            },
+            [](const GreaterThan &node) {
+                return Constraint<Fraction>({}, Constraint<Fraction>::Relation::GT, Fraction{});
+            },
+            [](const GreaterOrEqualTo &node) {
+                assert(!"Unreachable");
+                return Constraint<Fraction>({}, Constraint<Fraction>::Relation::EQ, Fraction{});
+            },
+            [](const NotEqualTo &node) {
+                assert(!"Unreachable");
+                return Constraint<Fraction>({}, Constraint<Fraction>::Relation::EQ, Fraction{});
+            }
+        }, *atom
     );
 }

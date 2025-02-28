@@ -34,14 +34,9 @@ struct Multiplication
     std::shared_ptr<Term> left, right;
 };
 
-struct Division
+struct Term : public std::variant<RationalNumber, Variable, Addition, Subtraction, Multiplication>
 {
-    std::shared_ptr<Term> left, right;
-};
-
-struct Term : public std::variant<RationalNumber, Variable, Addition, Subtraction, Multiplication, Division>
-{
-    using variant<RationalNumber, Variable, Addition, Subtraction, Multiplication, Division>::variant;
+    using variant<RationalNumber, Variable, Addition, Subtraction, Multiplication>::variant;
 };
 
 struct EqualTo
