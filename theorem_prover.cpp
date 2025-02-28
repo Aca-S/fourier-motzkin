@@ -159,7 +159,8 @@ std::shared_ptr<Formula> simplify_constraints(std::shared_ptr<Formula> formula)
     );
 }
 
-std::vector<ConstraintConjuction<Fraction>> disjunction_to_constraints(std::shared_ptr<Formula> formula, const VariableMapping &var_map);
+std::vector<ConstraintConjuction<Fraction>> formula_to_constraints(std::shared_ptr<Formula> formula, const VariableMapping &var_map);
+std::shared_ptr<Formula> constraints_to_formula(const std::vector<ConstraintConjuction<Fraction>> &constraints, const VariableMapping &var_map);
 
 std::shared_ptr<Formula> eliminate_quantifiers(std::shared_ptr<Formula> formula, VariableMapping &var_map)
 {
@@ -192,19 +193,25 @@ std::shared_ptr<Formula> eliminate_quantifiers(std::shared_ptr<Formula> formula,
                 var_map.add_variable(node.var_symbol);
                 const auto subformula = eliminate_quantifiers(node.formula, var_map);
                 const auto base = dnf(simplify_constraints(nnf(f_ptr<Negation>(subformula))));
-                const auto constraints = disjunction_to_constraints(base, var_map);
-                //var_map.remove_variable(node.var_symbol);
-                return f_ptr<Negation>(base);
+                auto constraints = formula_to_constraints(base, var_map);
+                for (auto &conjuction : constraints) {
+                    conjuction.eliminate_variable(var_map.get_variable_number(node.var_symbol));
+                }
+                const auto new_base = constraints_to_formula(constraints, var_map);
+                var_map.remove_variable(node.var_symbol);
+                return f_ptr<Negation>(new_base);
             },
             [&var_map](const ExistentialQuantification &node) {
                 var_map.add_variable(node.var_symbol);
                 const auto subformula = eliminate_quantifiers(node.formula, var_map);
                 const auto base = dnf(simplify_constraints(nnf(subformula)));
-                const auto constraints = disjunction_to_constraints(base, var_map);
-                // Elim. var
-                // Convert back to AST form
-                //var_map.remove_variable(node.var_symbol);
-                return base;
+                auto constraints = formula_to_constraints(base, var_map);
+                for (auto &conjuction : constraints) {
+                    conjuction.eliminate_variable(var_map.get_variable_number(node.var_symbol));
+                }
+                const auto new_base = constraints_to_formula(constraints, var_map);
+                var_map.remove_variable(node.var_symbol);
+                return new_base;
             }
         }, *formula
     );
@@ -326,7 +333,7 @@ ConstraintConjuction<Fraction> conjuction_to_constraints(std::shared_ptr<Formula
     );
 }
 
-std::vector<ConstraintConjuction<Fraction>> disjunction_to_constraints(std::shared_ptr<Formula> formula, const VariableMapping &var_map)
+std::vector<ConstraintConjuction<Fraction>> formula_to_constraints(std::shared_ptr<Formula> formula, const VariableMapping &var_map)
 {
     return std::visit(
         overloaded{
@@ -345,8 +352,8 @@ std::vector<ConstraintConjuction<Fraction>> disjunction_to_constraints(std::shar
                 return std::vector<ConstraintConjuction<Fraction>>({conjuction_to_constraints(formula, var_map)});
             },
             [&var_map](const Disjunction &node) {
-                const auto left = disjunction_to_constraints(node.left, var_map);
-                const auto right = disjunction_to_constraints(node.right, var_map);
+                const auto left = formula_to_constraints(node.left, var_map);
+                const auto right = formula_to_constraints(node.right, var_map);
                 std::vector<ConstraintConjuction<Fraction>> left_right_concat;
                 left_right_concat.reserve(left.size() + right.size());
                 left_right_concat.insert(left_right_concat.end(), left.begin(), left.end());
@@ -371,4 +378,54 @@ std::vector<ConstraintConjuction<Fraction>> disjunction_to_constraints(std::shar
             }
         }, *formula
     );
+}
+
+std::shared_ptr<Formula> constraint_to_formula(const Constraint<Fraction> &constraint, const VariableMapping &var_map)
+{
+    const auto &lhs = constraint.get_lhs();
+    std::shared_ptr<Term> left = t_ptr<RationalNumber>(0);
+    for (std::size_t var_num = 0; var_num < lhs.size(); var_num++) {
+        const auto coef = lhs[var_num];
+        const auto var = var_map.get_variable_symbol(var_num);
+        if (coef > 0) {
+            left = t_ptr<Addition>(left, t_ptr<Multiplication>(std::make_shared<RationalNumber>(coef), std::make_shared<Variable>(var)));
+        } else if (coef < 0) {
+            left = t_ptr<Subtraction>(left, t_ptr<Multiplication>(std::make_shared<RationalNumber>(coef), std::make_shared<Variable>(var)));
+        }
+    }
+    const auto right = t_ptr<RationalNumber>(constraint.get_rhs());
+    if (constraint.get_relation() == Constraint<Fraction>::Relation::LT) {
+        return f_ptr<AtomWrapper>(a_ptr<LessThan>(left, right));
+    } else if (constraint.get_relation() == Constraint<Fraction>::Relation::GT) {
+        return f_ptr<AtomWrapper>(a_ptr<GreaterThan>(left, right));
+    } else {
+        return f_ptr<AtomWrapper>(a_ptr<EqualTo>(left, right));
+    }
+}
+
+std::shared_ptr<Formula> conjuction_to_formula(const ConstraintConjuction<Fraction> &conjuction, const VariableMapping &var_map)
+{
+    const auto &constraints = conjuction.get_constraints();
+    if (constraints.size() == 0) {
+        return f_ptr<LogicConstant>(true);
+    } else {
+        auto acc = constraint_to_formula(constraints[0], var_map);
+        for (std::size_t i = 1; i < constraints.size(); i++) {
+            acc = f_ptr<Conjuction>(acc, constraint_to_formula(constraints[i], var_map));
+        }
+        return acc;
+    }
+}
+
+std::shared_ptr<Formula> constraints_to_formula(const std::vector<ConstraintConjuction<Fraction>> &constraints, const VariableMapping &var_map)
+{
+    if (constraints.size() == 0) {
+        return f_ptr<LogicConstant>(false);
+    } else {
+        auto acc = conjuction_to_formula(constraints[0], var_map);
+        for (std::size_t i = 1; i < constraints.size(); i++) {
+            acc = f_ptr<Disjunction>(acc, conjuction_to_formula(constraints[i], var_map));
+        }
+        return acc;
+    }
 }

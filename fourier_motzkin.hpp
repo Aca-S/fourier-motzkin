@@ -19,6 +19,10 @@ public:
 
     Constraint(const std::vector<T> &lhs, Relation relation, const T &rhs);
 
+    const std::vector<T>& get_lhs() const;
+    Relation get_relation() const;
+    const T& get_rhs() const;
+
 private:
     std::vector<T> m_lhs;
     Relation m_relation;
@@ -35,6 +39,24 @@ Constraint<T>::Constraint(const std::vector<T> &lhs, Relation relation, const T 
 }
 
 template <typename T>
+const std::vector<T>& Constraint<T>::get_lhs() const
+{
+    return m_lhs;
+}
+
+template <typename T>
+Constraint<T>::Relation Constraint<T>::get_relation() const
+{
+    return m_relation;
+}
+
+template <typename T>
+const T& Constraint<T>::get_rhs() const
+{
+    return m_rhs;
+}
+
+template <typename T>
 class ConstraintConjuction
 {
 public:
@@ -42,6 +64,8 @@ public:
 
     bool is_satisfiable() const;
     const std::vector<Constraint<T>>& get_constraints() const;
+
+    void eliminate_variable(std::size_t var_index);
 
 private:
     std::vector<Constraint<T>> m_constraints;
@@ -181,6 +205,14 @@ template <typename T>
 const std::vector<Constraint<T>>& ConstraintConjuction<T>::get_constraints() const
 {
     return m_constraints;
+}
+
+template <typename T>
+void ConstraintConjuction<T>::eliminate_variable(std::size_t var_index)
+{
+    if (!eliminate_variable_by_equality(m_constraints, var_index)) {
+        eliminate_variable_by_inequality(m_constraints, var_index);
+    }
 }
 
 #endif // FOURIER_MOTZKIN_HPP
