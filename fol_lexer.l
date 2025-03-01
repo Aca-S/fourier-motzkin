@@ -63,6 +63,10 @@
 
 }
 
+. {
+    return *yytext;
+}
+
 %%
 
 void FOLDriver::string_scan_init(const std::string &formula)
