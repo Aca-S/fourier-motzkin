@@ -192,13 +192,9 @@ void ConstraintConjuction<T>::eliminate_variable_by_inequality(std::vector<Const
 
     std::vector<std::size_t> to_remove;
     std::merge(lt_inequalities.cbegin(), lt_inequalities.cend(), gt_inequalities.cbegin(), gt_inequalities.cend(), std::back_inserter(to_remove));
-    for (std::size_t i = 0, rem = 0; i < conjuction.size(); i++) {
-        conjuction[i - rem] = std::move(conjuction[i]);
-        if (rem < to_remove.size() && i == to_remove[rem]) {
-            rem++;
-        }
+    for (auto it = to_remove.rbegin(); it != to_remove.rend(); it++) {
+        conjuction.erase(conjuction.cbegin() + *it);
     }
-    conjuction.erase(conjuction.cbegin() + conjuction.size() - to_remove.size(), conjuction.cend());
 }
 
 template <typename T>

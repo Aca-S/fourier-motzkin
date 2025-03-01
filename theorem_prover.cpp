@@ -5,6 +5,7 @@
 #include <cassert>
 
 std::shared_ptr<Formula> eliminate_quantifiers(std::shared_ptr<Formula> formula, VariableMapping &var_map);
+bool evaluate(const std::shared_ptr<Formula> formula);
 
 bool TheoremProver::is_theorem(const std::string &fol_formula) const
 {
@@ -12,17 +13,10 @@ bool TheoremProver::is_theorem(const std::string &fol_formula) const
     if (!formula) {
         throw std::invalid_argument("Parsing failed: \"" + fol_formula + "\" is not a valid first order logic formula");
     }
-
     formula = close(pnf(formula));
-    std::cout << formula_to_string(*formula) << std::endl;
-
     VariableMapping var_map;
     formula = eliminate_quantifiers(formula, var_map);
-
-    std::cout << formula_to_string(*formula) << std::endl;
-    std::cout << var_map.size() << std::endl;
-
-    return false;
+    return evaluate(formula);
 }
 
 void VariableMapping::add_variable(const std::string &variable_symbol)
@@ -193,6 +187,9 @@ std::shared_ptr<Formula> eliminate_quantifiers(std::shared_ptr<Formula> formula,
                 var_map.add_variable(node.var_symbol);
                 const auto subformula = eliminate_quantifiers(node.formula, var_map);
                 const auto base = dnf(simplify_constraints(nnf(f_ptr<Negation>(subformula))));
+                if (std::holds_alternative<LogicConstant>(*base)) {
+                   return f_ptr<Negation>(base);
+                }
                 auto constraints = formula_to_constraints(base, var_map);
                 for (auto &conjuction : constraints) {
                     conjuction.eliminate_variable(var_map.get_variable_number(node.var_symbol));
@@ -205,6 +202,9 @@ std::shared_ptr<Formula> eliminate_quantifiers(std::shared_ptr<Formula> formula,
                 var_map.add_variable(node.var_symbol);
                 const auto subformula = eliminate_quantifiers(node.formula, var_map);
                 const auto base = dnf(simplify_constraints(nnf(subformula)));
+                if (std::holds_alternative<LogicConstant>(*base)) {
+                   return base;
+                }
                 auto constraints = formula_to_constraints(base, var_map);
                 for (auto &conjuction : constraints) {
                     conjuction.eliminate_variable(var_map.get_variable_number(node.var_symbol));
@@ -233,8 +233,8 @@ void collect_coefficients(std::shared_ptr<Term> term, std::vector<Fraction> &lhs
                 collect_coefficients(node.right, lhs, rhs, var_map, flip_sign);
             },
             [&lhs, &rhs, &var_map, flip_sign](const Subtraction &node) {
-                collect_coefficients(node.left, lhs, rhs, var_map, !flip_sign);
-                collect_coefficients(node.left, lhs, rhs, var_map, !flip_sign);
+                collect_coefficients(node.left, lhs, rhs, var_map, flip_sign);
+                collect_coefficients(node.right, lhs, rhs, var_map, !flip_sign);
             },
             [&lhs, &var_map, flip_sign](const Multiplication &node) {
                 const auto var_num = var_map.get_variable_number(node.var->symbol);
@@ -341,7 +341,7 @@ std::vector<ConstraintConjuction<Fraction>> formula_to_constraints(std::shared_p
                 return std::vector<ConstraintConjuction<Fraction>>({conjuction_to_constraints(formula, var_map)});
             },
             [](const LogicConstant &node) {
-                assert("!Unreachable");
+                assert(!"Unreachable");
                 return std::vector<ConstraintConjuction<Fraction>>();
             },
             [](const Negation &node) {
@@ -390,7 +390,7 @@ std::shared_ptr<Formula> constraint_to_formula(const Constraint<Fraction> &const
         if (coef > 0) {
             left = t_ptr<Addition>(left, t_ptr<Multiplication>(std::make_shared<RationalNumber>(coef), std::make_shared<Variable>(var)));
         } else if (coef < 0) {
-            left = t_ptr<Subtraction>(left, t_ptr<Multiplication>(std::make_shared<RationalNumber>(coef), std::make_shared<Variable>(var)));
+            left = t_ptr<Subtraction>(left, t_ptr<Multiplication>(std::make_shared<RationalNumber>(-coef), std::make_shared<Variable>(var)));
         }
     }
     const auto right = t_ptr<RationalNumber>(constraint.get_rhs());
@@ -428,4 +428,96 @@ std::shared_ptr<Formula> constraints_to_formula(const std::vector<ConstraintConj
         }
         return acc;
     }
+}
+
+Fraction evaluate(const std::shared_ptr<Term> term)
+{
+    return std::visit(
+        overloaded{
+            [](const RationalNumber &node) {
+                return node.value;
+            },
+            [](const Variable &node) {
+                assert(!"Unreachable");
+                return Fraction{};
+            },
+            [](const Addition &node) {
+                return evaluate(node.left) + evaluate(node.right);
+            },
+            [](const Subtraction &node) {
+                return evaluate(node.left) - evaluate(node.right);
+            },
+            [](const Multiplication &node) {
+                assert(!"Unreachable");
+                return Fraction{};
+            }
+        }, *term
+    );
+}
+
+bool evaluate(const std::shared_ptr<Atom> atom)
+{
+    return std::visit(
+        overloaded{
+            [](const EqualTo &node) {
+                return evaluate(node.left) == evaluate(node.right);
+            },
+            [](const LessThan &node) {
+                return evaluate(node.left) < evaluate(node.right);
+            },
+            [](const LessOrEqualTo &node) {
+                return evaluate(node.left) <= evaluate(node.right);
+            },
+            [](const GreaterThan &node) {
+                return evaluate(node.left) > evaluate(node.right);
+            },
+            [](const GreaterOrEqualTo &node) {
+                return evaluate(node.left) >= evaluate(node.right);
+            },
+            [](const NotEqualTo &node) {
+                return evaluate(node.left) != evaluate(node.right);
+            }
+        }, *atom
+    );
+}
+
+bool evaluate(const std::shared_ptr<Formula> formula)
+{
+    return std::visit(
+        overloaded{
+            [](const AtomWrapper &node) {
+                return evaluate(node.atom);
+            },
+            [](const LogicConstant &node) {
+                return node.value;
+            },
+            [](const Negation &node) {
+                return !evaluate(node.operand);
+            },
+            [](const Conjuction &node) {
+                return evaluate(node.left) && evaluate(node.right);
+            },
+            [](const Disjunction &node) {
+                return evaluate(node.left) || evaluate(node.right);
+            },
+            [](const Implication &node) {
+                if (evaluate(node.left)) {
+                    return evaluate(node.right);
+                } else {
+                    return true;
+                }
+            },
+            [](const Equivalence &node) {
+                return evaluate(node.left) == evaluate(node.right);
+            },
+            [](const UniversalQuantification &node) {
+                assert(!"Unreachable");
+                return false;
+            },
+            [](const ExistentialQuantification &node) {
+                assert(!"Unreachable");
+                return false;
+            }
+        }, *formula
+    );
 }
