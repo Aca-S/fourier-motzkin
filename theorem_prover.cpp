@@ -188,19 +188,15 @@ std::shared_ptr<Formula> TheoremProver::eliminate_quantifiers(std::shared_ptr<Fo
             [&formula](const Disjunction &node) {
                 return formula;
             },
-            [&formula](const Implication &node) {
-                assert(!"Unreachable");
-                return formula;
-            },
-            [&formula](const Equivalence &node) {
-                assert(!"Unreachable");
-                return formula;
-            },
             [this, &var_map](const UniversalQuantification &node) {
                 return eliminate_variable(node.formula, node.var_symbol, var_map, false);
             },
             [this, &var_map](const ExistentialQuantification &node) {
                 return eliminate_variable(node.formula, node.var_symbol, var_map, true);
+            },
+            [&formula](const auto &node) {
+                assert(!"Unreachable");
+                return formula;
             }
         }, *formula
     );
@@ -211,8 +207,11 @@ std::shared_ptr<Formula> TheoremProver::eliminate_variable(std::shared_ptr<Formu
     var_map.add_variable(quantified_variable);
     base_formula = eliminate_quantifiers(base_formula, var_map);
     m_log << "[VARIABLE ELIMINATION] Eliminating " << (is_existential ? "existentially" : "universally") << " bound variable " << quantified_variable << std::endl;
-    m_log << "\tBase formula: " << formula_to_string(*base_formula) << std::endl;
-    base_formula = dnf(simplify_constraints(nnf(is_existential ? base_formula : f_ptr<Negation>(base_formula))));
+    if (!is_existential) {
+        base_formula = f_ptr<Negation>(base_formula);
+    }
+    m_log << "\tBase formula" << (is_existential ? "" : " (negated due to universal quantification)") << ": " << formula_to_string(*base_formula) << std::endl;
+    base_formula = dnf(simplify_constraints(nnf(base_formula)));
     m_log << "\tBase formula DNF: " << formula_to_string(*base_formula) << std::endl;
     if (!std::holds_alternative<LogicConstant>(*base_formula)) {
         auto constraints = formula_to_constraints(base_formula, var_map);
@@ -223,7 +222,7 @@ std::shared_ptr<Formula> TheoremProver::eliminate_variable(std::shared_ptr<Formu
         var_map.remove_variable(quantified_variable);
     }
     base_formula = is_existential ? base_formula : f_ptr<Negation>(base_formula);
-    m_log << "\tNew base formula: " << formula_to_string(*base_formula) << std::endl;
+    m_log << "\tNew base formula" << (is_existential ? "" : " (negated due to universal quantification)") << ": " << formula_to_string(*base_formula) << std::endl;
     return base_formula;
 }
 
@@ -272,10 +271,6 @@ Constraint<Fraction> atom_to_constraint(std::shared_ptr<Atom> atom, const Variab
                 collect_coefficients(node.right, lhs, rhs, var_map, true);
                 return Constraint<Fraction>(lhs, Constraint<Fraction>::Relation::LT, rhs);
             },
-            [](const LessOrEqualTo &node) {
-                assert(!"Unreachable");
-                return Constraint<Fraction>({}, Constraint<Fraction>::Relation::EQ, Fraction{});
-            },
             [&var_map](const GreaterThan &node) {
                 std::vector<Fraction> lhs(var_map.size());
                 Fraction rhs;
@@ -283,11 +278,7 @@ Constraint<Fraction> atom_to_constraint(std::shared_ptr<Atom> atom, const Variab
                 collect_coefficients(node.right, lhs, rhs, var_map, true);
                 return Constraint<Fraction>(lhs, Constraint<Fraction>::Relation::GT, rhs);
             },
-            [](const GreaterOrEqualTo &node) {
-                assert(!"Unreachable");
-                return Constraint<Fraction>({}, Constraint<Fraction>::Relation::EQ, Fraction{});
-            },
-            [](const NotEqualTo &node) {
+            [](const auto &node) {
                 assert(!"Unreachable");
                 return Constraint<Fraction>({}, Constraint<Fraction>::Relation::EQ, Fraction{});
             }
@@ -302,14 +293,6 @@ ConstraintConjuction<Fraction> conjuction_to_constraints(std::shared_ptr<Formula
             [&var_map](const AtomWrapper &node) {
                 return ConstraintConjuction<Fraction>({atom_to_constraint(node.atom, var_map)});
             },
-            [](const LogicConstant &node) {
-                assert(!"Unreachable");
-                return ConstraintConjuction<Fraction>({});
-            },
-            [](const Negation &node) {
-                assert(!"Unreachable");
-                return ConstraintConjuction<Fraction>({});
-            },
             [&var_map](const Conjuction &node) {
                 const auto left = conjuction_to_constraints(node.left, var_map).get_constraints();
                 const auto right = conjuction_to_constraints(node.right, var_map).get_constraints();
@@ -319,23 +302,7 @@ ConstraintConjuction<Fraction> conjuction_to_constraints(std::shared_ptr<Formula
                 left_right_concat.insert(left_right_concat.end(), right.begin(), right.end());
                 return ConstraintConjuction<Fraction>(left_right_concat);
             },
-            [](const Disjunction &node) {
-                assert(!"Unreachable");
-                return ConstraintConjuction<Fraction>({});
-            },
-            [](const Implication &node) {
-                assert(!"Unreachable");
-                return ConstraintConjuction<Fraction>({});
-            },
-            [](const Equivalence &node) {
-                assert(!"Unreachable");
-                return ConstraintConjuction<Fraction>({});
-            },
-            [](const UniversalQuantification &node) {
-                assert(!"Unreachable");
-                return ConstraintConjuction<Fraction>({});
-            },
-            [](const ExistentialQuantification &node) {
+            [](const auto &node) {
                 assert(!"Unreachable");
                 return ConstraintConjuction<Fraction>({});
             }
@@ -350,14 +317,6 @@ std::vector<ConstraintConjuction<Fraction>> formula_to_constraints(std::shared_p
             [&formula, &var_map](const AtomWrapper &node) {
                 return std::vector<ConstraintConjuction<Fraction>>({conjuction_to_constraints(formula, var_map)});
             },
-            [](const LogicConstant &node) {
-                assert(!"Unreachable");
-                return std::vector<ConstraintConjuction<Fraction>>();
-            },
-            [](const Negation &node) {
-                assert(!"Unreachable");
-                return std::vector<ConstraintConjuction<Fraction>>();
-            },
             [&formula, &var_map](const Conjuction &node) {
                 return std::vector<ConstraintConjuction<Fraction>>({conjuction_to_constraints(formula, var_map)});
             },
@@ -370,19 +329,7 @@ std::vector<ConstraintConjuction<Fraction>> formula_to_constraints(std::shared_p
                 left_right_concat.insert(left_right_concat.end(), right.begin(), right.end());
                 return left_right_concat;
             },
-            [](const Implication &node) {
-                assert(!"Unreachable");
-                return std::vector<ConstraintConjuction<Fraction>>();
-            },
-            [](const Equivalence &node) {
-                assert(!"Unreachable");
-                return std::vector<ConstraintConjuction<Fraction>>();
-            },
-            [](const UniversalQuantification &node) {
-                assert(!"Unreachable");
-                return std::vector<ConstraintConjuction<Fraction>>();
-            },
-            [](const ExistentialQuantification &node) {
+            [](const auto &node) {
                 assert(!"Unreachable");
                 return std::vector<ConstraintConjuction<Fraction>>();
             }
@@ -447,17 +394,13 @@ Fraction evaluate(const std::shared_ptr<Term> term)
             [](const RationalNumber &node) {
                 return node.value;
             },
-            [](const Variable &node) {
-                assert(!"Unreachable");
-                return Fraction{};
-            },
             [](const Addition &node) {
                 return evaluate(node.left) + evaluate(node.right);
             },
             [](const Subtraction &node) {
                 return evaluate(node.left) - evaluate(node.right);
             },
-            [](const Multiplication &node) {
+            [](const auto &node) {
                 assert(!"Unreachable");
                 return Fraction{};
             }
@@ -520,11 +463,7 @@ bool evaluate(const std::shared_ptr<Formula> formula)
             [](const Equivalence &node) {
                 return evaluate(node.left) == evaluate(node.right);
             },
-            [](const UniversalQuantification &node) {
-                assert(!"Unreachable");
-                return false;
-            },
-            [](const ExistentialQuantification &node) {
+            [](const auto &node) {
                 assert(!"Unreachable");
                 return false;
             }

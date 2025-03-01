@@ -130,12 +130,14 @@ struct Formula : public std::variant<AtomWrapper, LogicConstant, Negation, Conju
 };
 
 // For overloaded lambdas...
-template <typename... Ts> struct overloaded : Ts...
+template <typename... Ts>
+struct overloaded : Ts...
 {
     using Ts::operator()...;
 };
 
-template <typename... Ts> overloaded(Ts...) -> overloaded<Ts...>;
+template <typename... Ts>
+overloaded(Ts...) -> overloaded<Ts...>;
 
 template <typename T, typename... Args>
 std::shared_ptr<Term> t_ptr(Args&&... args)
