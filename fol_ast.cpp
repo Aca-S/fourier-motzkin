@@ -655,7 +655,6 @@ std::shared_ptr<Formula> pull_quantifiers(std::shared_ptr<Formula> formula)
                         return f_ptr<UniversalQuantification>(l.var_symbol, pull_quantifiers(f_ptr<Conjuction>(l.formula, r.formula)));
                     }
                 }
-
                 if (const auto *uni = std::get_if<UniversalQuantification>(node.left.get())) {
                     return pull_quantifiers<Conjuction, UniversalQuantification>(node, *uni, true);
                 } else if (const auto *exi = std::get_if<ExistentialQuantification>(node.left.get())) {
@@ -676,7 +675,6 @@ std::shared_ptr<Formula> pull_quantifiers(std::shared_ptr<Formula> formula)
                         return f_ptr<UniversalQuantification>(l.var_symbol, pull_quantifiers(f_ptr<Disjunction>(l.formula, r.formula)));
                     }
                 }
-
                 if (const auto *uni = std::get_if<UniversalQuantification>(node.left.get())) {
                     return pull_quantifiers<Disjunction, UniversalQuantification>(node, *uni, true);
                 } else if (const auto *exi = std::get_if<ExistentialQuantification>(node.left.get())) {
