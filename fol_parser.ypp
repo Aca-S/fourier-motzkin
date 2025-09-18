@@ -42,43 +42,93 @@
 %%
 
 complete_formula:
-    formula { driver.m_ast = std::move($1); }
+    formula {
+        driver.m_ast = $1;
+    }
 ;
 
 formula:
-    '~' formula { $$ = std::make_shared<Formula>(Negation(std::move($2))); }
-|   formula '&' formula { $$ = std::make_shared<Formula>(Conjuction(std::move($1), std::move($3))); }
-|   formula '|' formula { $$ = std::make_shared<Formula>(Disjunction(std::move($1), std::move($3))); }
-|   formula IMPL_T formula { $$ = std::make_shared<Formula>(Implication(std::move($1), std::move($3))); }
-|   formula EQUI_T formula { $$ = std::make_shared<Formula>(Equivalence(std::move($1), std::move($3))); }
-|   '!' VAR_T '.' formula { $$ = std::make_shared<Formula>(UniversalQuantification($2, std::move($4))); }
-|   '?' VAR_T '.' formula { $$ = std::make_shared<Formula>(ExistentialQuantification($2, std::move($4))); }
-|   '(' formula ')' { $$ = std::move($2); }
-|   atom { $$ = std::make_shared<Formula>(AtomWrapper(std::move($1))); }
-|   TRUE_T { $$ = std::make_shared<Formula>(LogicConstant(true)); }
-|   FALSE_T { $$ = std::make_shared<Formula>(LogicConstant(false)); }
+    '~' formula {
+        $$ = f_ptr<Negation>($2);
+    }
+|   formula '&' formula {
+        $$ = f_ptr<Conjuction>($1, $3);
+    }
+|   formula '|' formula {
+        $$ = f_ptr<Disjunction>($1, $3);
+    }
+|   formula IMPL_T formula {
+        $$ = f_ptr<Implication>($1, $3);
+    }
+|   formula EQUI_T formula {
+        $$ = f_ptr<Equivalence>($1, $3);
+    }
+|   '!' VAR_T '.' formula {
+        $$ = f_ptr<UniversalQuantification>($2, $4);
+    }
+|   '?' VAR_T '.' formula {
+        $$ = f_ptr<ExistentialQuantification>($2, $4);
+    }
+|   '(' formula ')' {
+        $$ = $2;
+    }
+|   atom {
+        $$ = f_ptr<AtomWrapper>($1);
+    }
+|   TRUE_T {
+        $$ = f_ptr<LogicConstant>(true);
+    }
+|   FALSE_T {
+        $$ = f_ptr<LogicConstant>(false);
+    }
 ;
 
 atom:
-    term '=' term { $$ = std::make_shared<Atom>(EqualTo(std::move($1), std::move($3))); }
-|   term '<' term { $$ = std::make_shared<Atom>(LessThan(std::move($1), std::move($3))); }
-|   term '>' term { $$ = std::make_shared<Atom>(GreaterThan(std::move($1), std::move($3))); }
-|   term LEQ_T term { $$ = std::make_shared<Atom>(LessOrEqualTo(std::move($1), std::move($3))); }
-|   term GEQ_T term { $$ = std::make_shared<Atom>(GreaterOrEqualTo(std::move($1), std::move($3))); }
-|   term NEQ_T term { $$ = std::make_shared<Atom>(NotEqualTo(std::move($1), std::move($3))); }
+    term '=' term {
+        $$ = a_ptr<EqualTo>($1, $3);
+    }
+|   term '<' term {
+        $$ = a_ptr<LessThan>($1, $3);
+    }
+|   term '>' term {
+        $$ = a_ptr<GreaterThan>($1, $3);
+    }
+|   term LEQ_T term {
+        $$ = a_ptr<LessOrEqualTo>($1, $3);
+    }
+|   term GEQ_T term {
+        $$ = a_ptr<GreaterOrEqualTo>($1, $3);
+    }
+|   term NEQ_T term {
+        $$ = a_ptr<NotEqualTo>($1, $3);
+    }
 ;
 
 term:
-    term '+' term { $$ = std::make_shared<Term>(Addition(std::move($1), std::move($3))); }
-|   term '-' term { $$ = std::make_shared<Term>(Subtraction(std::move($1), std::move($3))); }
-|   fraction '*' VAR_T { $$ = std::make_shared<Term>(Variable($1, $3)); }
-|   VAR_T { $$ = std::make_shared<Term>(Variable(Fraction(1, 1), $1)); }
-|   fraction { $$ = std::make_shared<Term>(RationalNumber($1)); }
+    term '+' term {
+        $$ = t_ptr<Addition>($1, $3);
+    }
+|   term '-' term {
+        $$ = t_ptr<Subtraction>($1, $3);
+    }
+|   fraction '*' VAR_T {
+        $$ = t_ptr<Variable>($1, $3);
+    }
+|   VAR_T {
+        $$ = t_ptr<Variable>(Fraction(1, 1), $1);
+    }
+|   fraction {
+        $$ = t_ptr<RationalNumber>($1);
+    }
 ;
 
 fraction:
-    INT_T { $$ = Fraction($1); }
-|   INT_T '/' INT_T { $$ = Fraction($1, $3); }
+    INT_T {
+        $$ = Fraction($1);
+    }
+|   INT_T '/' INT_T {
+        $$ = Fraction($1, $3);
+    }
 ;
 
 %%
