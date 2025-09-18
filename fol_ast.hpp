@@ -16,6 +16,7 @@ struct RationalNumber
 
 struct Variable
 {
+    Fraction coef;
     std::string symbol;
 };
 
@@ -29,13 +30,7 @@ struct Subtraction
     std::shared_ptr<Term> left, right;
 };
 
-struct Multiplication
-{
-    std::shared_ptr<RationalNumber> coef;
-    std::shared_ptr<Variable> var;
-};
-
-struct Term : public std::variant<RationalNumber, Variable, Addition, Subtraction, Multiplication>
+struct Term : public std::variant<RationalNumber, Variable, Addition, Subtraction>
 {
     using variant::variant;
 };

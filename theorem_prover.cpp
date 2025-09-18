@@ -235,7 +235,7 @@ void collect_coefficients(std::shared_ptr<Term> term, std::vector<Fraction> &lhs
             },
             [&lhs, &var_map, flip_sign](const Variable &node) {
                 const auto var_num = var_map.get_variable_number(node.symbol);
-                lhs[var_num] = flip_sign ? lhs[var_num] - 1 : lhs[var_num] + 1;
+                lhs[var_num] = flip_sign ? lhs[var_num] - node.coef : lhs[var_num] + node.coef;
             },
             [&lhs, &rhs, &var_map, flip_sign](const Addition &node) {
                 collect_coefficients(node.left, lhs, rhs, var_map, flip_sign);
@@ -244,10 +244,6 @@ void collect_coefficients(std::shared_ptr<Term> term, std::vector<Fraction> &lhs
             [&lhs, &rhs, &var_map, flip_sign](const Subtraction &node) {
                 collect_coefficients(node.left, lhs, rhs, var_map, flip_sign);
                 collect_coefficients(node.right, lhs, rhs, var_map, !flip_sign);
-            },
-            [&lhs, &var_map, flip_sign](const Multiplication &node) {
-                const auto var_num = var_map.get_variable_number(node.var->symbol);
-                lhs[var_num] = flip_sign ? lhs[var_num] - node.coef->value : lhs[var_num] + node.coef->value;
             }
         }, *term
     );
@@ -345,9 +341,9 @@ std::shared_ptr<Formula> constraint_to_formula(const Constraint<Fraction> &const
         const auto coef = lhs[var_num];
         const auto var = var_map.get_variable_symbol(var_num);
         if (coef > 0) {
-            left = t_ptr<Addition>(left, t_ptr<Multiplication>(std::make_shared<RationalNumber>(coef), std::make_shared<Variable>(var)));
+            left = t_ptr<Addition>(left, t_ptr<Variable>(coef, var));
         } else if (coef < 0) {
-            left = t_ptr<Subtraction>(left, t_ptr<Multiplication>(std::make_shared<RationalNumber>(-coef), std::make_shared<Variable>(var)));
+            left = t_ptr<Subtraction>(left, t_ptr<Variable>(-coef, var));
         }
     }
     const auto right = t_ptr<RationalNumber>(constraint.get_rhs());

@@ -2,6 +2,7 @@
 #define FRACTION_HPP
 
 #include <compare>
+#include <string>
 
 class Fraction
 {
@@ -17,6 +18,8 @@ public:
     Fraction operator/(const Fraction &other) const;
 
     Fraction operator-() const;
+
+    operator std::string() const;
 
     auto operator<=>(const Fraction &other) const
     {

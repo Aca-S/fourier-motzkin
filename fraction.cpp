@@ -61,3 +61,8 @@ Fraction Fraction::operator-() const
 {
     return Fraction(-m_numerator, m_denominator);
 }
+
+Fraction::operator std::string() const
+{
+    return std::to_string(m_numerator) + (m_denominator == 1 ? "" : "/" + std::to_string(m_denominator));
+}

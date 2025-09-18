@@ -10,19 +10,16 @@ static unsigned precedence(std::shared_ptr<Term> term)
     return std::visit(
         overloaded{
             [](const RationalNumber &node) {
-                return 2;
+                return 1;
             },
             [](const Variable &node) {
-                return 2;
+                return 1;
             },
             [](const Addition &node) {
                 return 0;
             },
             [](const Subtraction &node) {
                 return 0;
-            },
-            [](const Multiplication &node) {
-                return 1;
             }
         }, *term
     );
@@ -41,21 +38,22 @@ static std::string term_to_string(std::shared_ptr<Term> term)
     return std::visit(
         overloaded{
             [](const RationalNumber &node) {
-                const auto num = node.value.get_numerator();
-                const auto den = node.value.get_denominator();
-                return std::to_string(num) + (den == 1 ? "" : "/" + std::to_string(den));
+                return static_cast<std::string>(node.value);
             },
             [](const Variable &node) {
-                return node.symbol;
+                if (node.coef == Fraction(1, 1)) {
+                    return node.symbol;
+                } else if (node.coef == Fraction(-1, 1)) {
+                    return "-" + node.symbol;
+                } else {
+                    return static_cast<std::string>(node.coef) + "*" + node.symbol;
+                }
             },
             [&term](const Addition &node) {
                 return wrap(node.left, term) + "+" + wrap(node.right, term);
             },
             [&term](const Subtraction &node) {
                 return wrap(node.left, term) + "-" + wrap(node.right, term);
-            },
-            [&term](const Multiplication &node) {
-                return wrap(std::make_shared<Term>(*node.coef), term) + "*" + wrap(std::make_shared<Term>(*node.var), term);
             }
         }, *term
     );
@@ -363,9 +361,6 @@ void collect_free_variables(std::shared_ptr<Term> term, std::set<std::string> &f
             [&free_vars](const Subtraction &node) {
                 collect_free_variables(node.left, free_vars);
                 collect_free_variables(node.right, free_vars);
-            },
-            [&free_vars](const Multiplication &node) {
-                free_vars.insert(node.var->symbol);
             }
         }, *term
     );
@@ -505,16 +500,13 @@ std::shared_ptr<Term> substitute(std::shared_ptr<Term> term, const std::string &
                 return term;
             },
             [&term, &var, &s_var](const Variable &node) {
-                return node.symbol == var ? t_ptr<Variable>(s_var) : term;
+                return node.symbol == var ? t_ptr<Variable>(node.coef, s_var) : term;
             },
             [&var, &s_var](const Addition &node) {
                 return t_ptr<Addition>(substitute(node.left, var, s_var), substitute(node.right, var, s_var));
             },
             [&var, &s_var](const Subtraction &node) {
                 return t_ptr<Subtraction>(substitute(node.left, var, s_var), substitute(node.right, var, s_var));
-            },
-            [&term, &var, &s_var](const Multiplication &node) {
-                return node.var->symbol == var ? t_ptr<Multiplication>(node.coef, std::make_shared<Variable>(s_var)) : term;
             }
         }, *term
     );
