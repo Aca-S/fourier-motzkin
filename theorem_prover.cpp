@@ -20,12 +20,12 @@ bool TheoremProver::is_theorem(const std::string &fol_formula) const
         throw std::invalid_argument("Parsing failed: \"" + fol_formula + "\" is not a valid first order logic formula");
     }
     m_log << "========== [PROOF START] ==========" << std::endl;
-    m_log << "[FORMULA] " << formula_to_string(*formula) << std::endl;
+    m_log << "[FORMULA] " << formula_to_string(formula) << std::endl;
     formula = close(pnf(formula));
-    m_log << "[PRENEX] " << formula_to_string(*formula) << std::endl;
+    m_log << "[PRENEX] " << formula_to_string(formula) << std::endl;
     VariableMapping var_map;
     formula = eliminate_quantifiers(formula, var_map);
-    m_log << "[QUANTIFIER FREE FORM] " << formula_to_string(*formula) << std::endl;
+    m_log << "[QUANTIFIER FREE FORM] " << formula_to_string(formula) << std::endl;
     bool result = evaluate(formula);
     m_log << "[RESULT] " << (result ? "Formula is a theorem" : "Formula is not a theorem") << std::endl;
     m_log << "=========== [PROOF END] ===========" << std::endl;
@@ -210,9 +210,9 @@ std::shared_ptr<Formula> TheoremProver::eliminate_variable(std::shared_ptr<Formu
     if (!is_existential) {
         base_formula = f_ptr<Negation>(base_formula);
     }
-    m_log << "\tBase formula" << (is_existential ? "" : " (negated due to universal quantification)") << ": " << formula_to_string(*base_formula) << std::endl;
+    m_log << "\tBase formula" << (is_existential ? "" : " (negated due to universal quantification)") << ": " << formula_to_string(base_formula) << std::endl;
     base_formula = dnf(simplify_constraints(nnf(base_formula)));
-    m_log << "\tBase formula DNF: " << formula_to_string(*base_formula) << std::endl;
+    m_log << "\tBase formula DNF: " << formula_to_string(base_formula) << std::endl;
     if (!std::holds_alternative<LogicConstant>(*base_formula)) {
         auto constraints = formula_to_constraints(base_formula, var_map);
         for (auto &conjuction : constraints) {
@@ -222,7 +222,7 @@ std::shared_ptr<Formula> TheoremProver::eliminate_variable(std::shared_ptr<Formu
         var_map.remove_variable(quantified_variable);
     }
     base_formula = is_existential ? base_formula : f_ptr<Negation>(base_formula);
-    m_log << "\tNew base formula" << (is_existential ? "" : " (negated due to universal quantification)") << ": " << formula_to_string(*base_formula) << std::endl;
+    m_log << "\tNew base formula" << (is_existential ? "" : " (negated due to universal quantification)") << ": " << formula_to_string(base_formula) << std::endl;
     return base_formula;
 }
 

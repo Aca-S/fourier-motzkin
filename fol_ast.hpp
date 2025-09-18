@@ -37,7 +37,7 @@ struct Multiplication
 
 struct Term : public std::variant<RationalNumber, Variable, Addition, Subtraction, Multiplication>
 {
-    using variant<RationalNumber, Variable, Addition, Subtraction, Multiplication>::variant;
+    using variant::variant;
 };
 
 struct EqualTo
@@ -72,7 +72,7 @@ struct NotEqualTo
 
 struct Atom : public std::variant<EqualTo, LessThan, LessOrEqualTo, GreaterThan, GreaterOrEqualTo, NotEqualTo>
 {
-    using variant<EqualTo, LessThan, LessOrEqualTo, GreaterThan, GreaterOrEqualTo, NotEqualTo>::variant;
+    using variant::variant;
 };
 
 struct Formula;
@@ -126,7 +126,7 @@ struct ExistentialQuantification
 
 struct Formula : public std::variant<AtomWrapper, LogicConstant, Negation, Conjuction, Disjunction, Implication, Equivalence, UniversalQuantification, ExistentialQuantification>
 {
-    using variant<AtomWrapper, LogicConstant, Negation, Conjuction, Disjunction, Implication, Equivalence, UniversalQuantification, ExistentialQuantification>::variant;
+    using variant::variant;
 };
 
 // For overloaded lambdas...
@@ -157,7 +157,7 @@ std::shared_ptr<Formula> f_ptr(Args&&... args)
     return std::make_shared<Formula>(T(args...));
 }
 
-std::string formula_to_string(const Formula &formula);
+std::string formula_to_string(std::shared_ptr<Formula> formula);
 
 // Removes logical constants from the given formula or transforms it to a constant itself.
 std::shared_ptr<Formula> simplify(std::shared_ptr<Formula> formula);
