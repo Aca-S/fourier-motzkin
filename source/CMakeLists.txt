@@ -23,12 +23,13 @@ add_executable(fourier_motzkin
     fourier_motzkin.hpp
     fraction.cpp
     fraction.hpp
-    fol_ast.cpp
     fol_ast.hpp
     fol_driver.cpp
     fol_driver.hpp
     fol_string_conversion.cpp
     fol_string_conversion.hpp
+    fol_normalization.cpp
+    fol_normalization.hpp
     theorem_prover.cpp
     theorem_prover.hpp
     ${BISON_fol_parser_OUTPUTS}

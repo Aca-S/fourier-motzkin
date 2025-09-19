@@ -1,18 +1,19 @@
 #include "theorem_prover.hpp"
 #include "fourier_motzkin.hpp"
 #include "fol_string_conversion.hpp"
+#include "fol_normalization.hpp"
 
 #include <stdexcept>
 #include <cassert>
 #include <iomanip>
-
-bool evaluate(const std::shared_ptr<Formula> formula);
 
 TheoremProver::TheoremProver(std::ostream &log)
     : m_log(log)
 {
 
 }
+
+static bool evaluate(const std::shared_ptr<Formula> formula);
 
 bool TheoremProver::is_theorem(const std::string &fol_formula) const
 {
@@ -23,7 +24,7 @@ bool TheoremProver::is_theorem(const std::string &fol_formula) const
     m_log << "========== [PROOF START] ==========" << std::endl;
     m_log << "[FORMULA] " << formula_to_string(formula) << std::endl;
     formula = close(pnf(formula));
-    m_log << "[PRENEX] " << formula_to_string(formula) << std::endl;
+    m_log << "[CLOSED PRENEX] " << formula_to_string(formula) << std::endl;
     VariableMapping var_map;
     formula = eliminate_quantifiers(formula, var_map);
     m_log << "[QUANTIFIER FREE FORM] " << formula_to_string(formula) << std::endl;
@@ -67,7 +68,7 @@ std::size_t VariableMapping::size() const
     return m_symbol_to_number.size();
 }
 
-std::shared_ptr<Formula> simplify_constraints(std::shared_ptr<Atom> atom)
+static std::shared_ptr<Formula> simplify_constraints(std::shared_ptr<Atom> atom)
 {
     return std::visit(
         overloaded{
@@ -102,7 +103,7 @@ std::shared_ptr<Formula> simplify_constraints(std::shared_ptr<Atom> atom)
     );
 }
 
-std::shared_ptr<Formula> simplify_negated_constraints(std::shared_ptr<Atom> atom)
+static std::shared_ptr<Formula> simplify_negated_constraints(std::shared_ptr<Atom> atom)
 {
     return std::visit(
         overloaded{
@@ -128,7 +129,7 @@ std::shared_ptr<Formula> simplify_negated_constraints(std::shared_ptr<Atom> atom
     );
 }
 
-std::shared_ptr<Formula> simplify_constraints(std::shared_ptr<Formula> formula)
+static std::shared_ptr<Formula> simplify_constraints(std::shared_ptr<Formula> formula)
 {
     return std::visit(
         overloaded{
@@ -170,8 +171,8 @@ std::shared_ptr<Formula> simplify_constraints(std::shared_ptr<Formula> formula)
     );
 }
 
-std::vector<ConstraintConjuction<Fraction>> formula_to_constraints(std::shared_ptr<Formula> formula, const VariableMapping &var_map);
-std::shared_ptr<Formula> constraints_to_formula(const std::vector<ConstraintConjuction<Fraction>> &constraints, const VariableMapping &var_map);
+static std::vector<ConstraintConjuction<Fraction>> formula_to_constraints(std::shared_ptr<Formula> formula, const VariableMapping &var_map);
+static std::shared_ptr<Formula> constraints_to_formula(const std::vector<ConstraintConjuction<Fraction>> &constraints, const VariableMapping &var_map);
 
 std::shared_ptr<Formula> TheoremProver::eliminate_quantifiers(std::shared_ptr<Formula> formula, VariableMapping &var_map) const
 {
@@ -213,7 +214,7 @@ std::shared_ptr<Formula> TheoremProver::eliminate_variable(std::shared_ptr<Formu
 {
     var_map.add_variable(quantified_variable);
     base_formula = eliminate_quantifiers(base_formula, var_map);
-    m_log << "[VARIABLE ELIMINATION] Eliminating " << (is_existential ? "existentially" : "universally") << " bound variable " << quantified_variable << std::endl;
+    m_log << "[VARIABLE ELIMINATION] Eliminating " << (is_existential ? "existentially" : "universally") << " bound variable " << "\"" << quantified_variable << "\"" << std::endl;
     if (!is_existential) {
         base_formula = f_ptr<Negation>(base_formula);
     }
@@ -233,7 +234,7 @@ std::shared_ptr<Formula> TheoremProver::eliminate_variable(std::shared_ptr<Formu
     return base_formula;
 }
 
-void collect_coefficients(std::shared_ptr<Term> term, std::vector<Fraction> &lhs, Fraction &rhs, const VariableMapping &var_map, bool flip_sign)
+static void collect_coefficients(std::shared_ptr<Term> term, std::vector<Fraction> &lhs, Fraction &rhs, const VariableMapping &var_map, bool flip_sign)
 {
     std::visit(
         overloaded{
@@ -256,7 +257,7 @@ void collect_coefficients(std::shared_ptr<Term> term, std::vector<Fraction> &lhs
     );
 }
 
-Constraint<Fraction> atom_to_constraint(std::shared_ptr<Atom> atom, const VariableMapping &var_map)
+static Constraint<Fraction> atom_to_constraint(std::shared_ptr<Atom> atom, const VariableMapping &var_map)
 {
     return std::visit(
         overloaded{
@@ -289,7 +290,7 @@ Constraint<Fraction> atom_to_constraint(std::shared_ptr<Atom> atom, const Variab
     );
 }
 
-ConstraintConjuction<Fraction> conjuction_to_constraints(std::shared_ptr<Formula> formula, const VariableMapping &var_map)
+static ConstraintConjuction<Fraction> conjuction_to_constraints(std::shared_ptr<Formula> formula, const VariableMapping &var_map)
 {
     return std::visit(
         overloaded{
@@ -313,7 +314,7 @@ ConstraintConjuction<Fraction> conjuction_to_constraints(std::shared_ptr<Formula
     );
 }
 
-std::vector<ConstraintConjuction<Fraction>> formula_to_constraints(std::shared_ptr<Formula> formula, const VariableMapping &var_map)
+static std::vector<ConstraintConjuction<Fraction>> formula_to_constraints(std::shared_ptr<Formula> formula, const VariableMapping &var_map)
 {
     return std::visit(
         overloaded{
@@ -340,7 +341,7 @@ std::vector<ConstraintConjuction<Fraction>> formula_to_constraints(std::shared_p
     );
 }
 
-std::shared_ptr<Formula> constraint_to_formula(const Constraint<Fraction> &constraint, const VariableMapping &var_map)
+static std::shared_ptr<Formula> constraint_to_formula(const Constraint<Fraction> &constraint, const VariableMapping &var_map)
 {
     const auto &lhs = constraint.get_lhs();
     std::shared_ptr<Term> left = t_ptr<RationalNumber>(0);
@@ -363,7 +364,7 @@ std::shared_ptr<Formula> constraint_to_formula(const Constraint<Fraction> &const
     }
 }
 
-std::shared_ptr<Formula> conjuction_to_formula(const ConstraintConjuction<Fraction> &conjuction, const VariableMapping &var_map)
+static std::shared_ptr<Formula> conjuction_to_formula(const ConstraintConjuction<Fraction> &conjuction, const VariableMapping &var_map)
 {
     const auto &constraints = conjuction.get_constraints();
     if (constraints.size() == 0) {
@@ -377,7 +378,7 @@ std::shared_ptr<Formula> conjuction_to_formula(const ConstraintConjuction<Fracti
     }
 }
 
-std::shared_ptr<Formula> constraints_to_formula(const std::vector<ConstraintConjuction<Fraction>> &constraints, const VariableMapping &var_map)
+static std::shared_ptr<Formula> constraints_to_formula(const std::vector<ConstraintConjuction<Fraction>> &constraints, const VariableMapping &var_map)
 {
     if (constraints.size() == 0) {
         return f_ptr<False>();
@@ -390,7 +391,7 @@ std::shared_ptr<Formula> constraints_to_formula(const std::vector<ConstraintConj
     }
 }
 
-Fraction evaluate(const std::shared_ptr<Term> term)
+static Fraction evaluate(const std::shared_ptr<Term> term)
 {
     return std::visit(
         overloaded{
@@ -411,7 +412,7 @@ Fraction evaluate(const std::shared_ptr<Term> term)
     );
 }
 
-bool evaluate(const std::shared_ptr<Atom> atom)
+static bool evaluate(const std::shared_ptr<Atom> atom)
 {
     return std::visit(
         overloaded{
@@ -437,7 +438,7 @@ bool evaluate(const std::shared_ptr<Atom> atom)
     );
 }
 
-bool evaluate(const std::shared_ptr<Formula> formula)
+static bool evaluate(const std::shared_ptr<Formula> formula)
 {
     return std::visit(
         overloaded{

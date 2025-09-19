@@ -1,6 +1,5 @@
-#include "fol_ast.hpp"
+#include "fol_normalization.hpp"
 
-#include <ostream>
 #include <variant>
 #include <cassert>
 #include <set>
@@ -211,7 +210,7 @@ std::shared_ptr<Formula> nnf(std::shared_ptr<Formula> formula)
     return nnf_h(simplify(formula));
 }
 
-void collect_free_variables(std::shared_ptr<Term> term, std::set<std::string> &free_vars)
+static void collect_free_variables(std::shared_ptr<Term> term, std::set<std::string> &free_vars)
 {
     std::visit(
         overloaded{
@@ -232,7 +231,7 @@ void collect_free_variables(std::shared_ptr<Term> term, std::set<std::string> &f
     );
 }
 
-void collect_free_variables(std::shared_ptr<Atom> atom, std::set<std::string> &free_vars)
+static void collect_free_variables(std::shared_ptr<Atom> atom, std::set<std::string> &free_vars)
 {
     std::visit(
         overloaded{
@@ -264,7 +263,7 @@ void collect_free_variables(std::shared_ptr<Atom> atom, std::set<std::string> &f
     );
 }
 
-void collect_free_variables(std::shared_ptr<Formula> formula, std::set<std::string> &free_vars)
+static void collect_free_variables(std::shared_ptr<Formula> formula, std::set<std::string> &free_vars)
 {
     std::visit(
         overloaded{
@@ -311,7 +310,7 @@ void collect_free_variables(std::shared_ptr<Formula> formula, std::set<std::stri
     );
 }
 
-void collect_quantified_variables(std::shared_ptr<Formula> formula, std::set<std::string> &quantified_vars)
+static void collect_quantified_variables(std::shared_ptr<Formula> formula, std::set<std::string> &quantified_vars)
 {
     std::visit(
         overloaded{
@@ -347,7 +346,7 @@ void collect_quantified_variables(std::shared_ptr<Formula> formula, std::set<std
     );
 }
 
-std::string generate_unique_variable(const std::string &var, const std::set<std::string> &free_vars)
+static std::string generate_unique_variable(const std::string &var, const std::set<std::string> &free_vars)
 {
     std::string new_var = var;
     unsigned counter = 0;
@@ -358,7 +357,7 @@ std::string generate_unique_variable(const std::string &var, const std::set<std:
     return new_var;
 }
 
-std::shared_ptr<Term> substitute(std::shared_ptr<Term> term, const std::string &var, const std::string &s_var)
+static std::shared_ptr<Term> substitute(std::shared_ptr<Term> term, const std::string &var, const std::string &s_var)
 {
     return std::visit(
         overloaded{
@@ -378,7 +377,7 @@ std::shared_ptr<Term> substitute(std::shared_ptr<Term> term, const std::string &
     );
 }
 
-std::shared_ptr<Atom> substitute(std::shared_ptr<Atom> atom, const std::string &var, const std::string &s_var)
+static std::shared_ptr<Atom> substitute(std::shared_ptr<Atom> atom, const std::string &var, const std::string &s_var)
 {
     return std::visit(
         overloaded{
@@ -404,7 +403,7 @@ std::shared_ptr<Atom> substitute(std::shared_ptr<Atom> atom, const std::string &
     );
 }
 
-std::shared_ptr<Formula> substitute(std::shared_ptr<Formula> formula, const std::string &var, const std::string &s_var)
+static std::shared_ptr<Formula> substitute(std::shared_ptr<Formula> formula, const std::string &var, const std::string &s_var)
 {
     return std::visit(
         overloaded{
@@ -460,10 +459,10 @@ std::shared_ptr<Formula> substitute(std::shared_ptr<Formula> formula, const std:
     );
 }
 
-std::shared_ptr<Formula> pull_quantifiers(std::shared_ptr<Formula> formula);
+static std::shared_ptr<Formula> pull_quantifiers(std::shared_ptr<Formula> formula);
 
 template<typename BinaryType, typename QuantifierType>
-std::shared_ptr<Formula> pull_quantifiers(const BinaryType &node, const QuantifierType &quant, bool quantifier_on_left)
+static std::shared_ptr<Formula> pull_quantifiers(const BinaryType &node, const QuantifierType &quant, bool quantifier_on_left)
 {
     std::set<std::string> free_vars;
     collect_free_variables(quantifier_on_left ? node.right : node.left, free_vars);
@@ -477,7 +476,7 @@ std::shared_ptr<Formula> pull_quantifiers(const BinaryType &node, const Quantifi
 }
 
 template<typename QuantifierType>
-std::shared_ptr<Formula> pull_quantifiers(const QuantifierType &quant)
+static std::shared_ptr<Formula> pull_quantifiers(const QuantifierType &quant)
 {
     std::set<std::string> quantified_vars;
     collect_quantified_variables(quant.formula, quantified_vars);
@@ -489,7 +488,7 @@ std::shared_ptr<Formula> pull_quantifiers(const QuantifierType &quant)
     }
 }
 
-std::shared_ptr<Formula> pull_quantifiers(std::shared_ptr<Formula> formula)
+static std::shared_ptr<Formula> pull_quantifiers(std::shared_ptr<Formula> formula)
 {
     return std::visit(
         overloaded{
@@ -559,7 +558,7 @@ std::shared_ptr<Formula> pull_quantifiers(std::shared_ptr<Formula> formula)
     );
 }
 
-std::shared_ptr<Formula> pnf_h(std::shared_ptr<Formula> formula)
+static std::shared_ptr<Formula> pnf_h(std::shared_ptr<Formula> formula)
 {
     return std::visit(
         overloaded{
@@ -600,7 +599,7 @@ std::shared_ptr<Formula> pnf(std::shared_ptr<Formula> formula)
     return pnf_h(nnf(formula));
 }
 
-std::shared_ptr<Formula> dnf_h(std::shared_ptr<Formula> formula)
+static std::shared_ptr<Formula> dnf_h(std::shared_ptr<Formula> formula)
 {
     return std::visit(
         overloaded{
