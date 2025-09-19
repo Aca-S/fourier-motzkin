@@ -76,10 +76,10 @@ formula:
         $$ = f_ptr<AtomWrapper>($1);
     }
 |   TRUE_T {
-        $$ = f_ptr<LogicConstant>(true);
+        $$ = f_ptr<True>();
     }
 |   FALSE_T {
-        $$ = f_ptr<LogicConstant>(false);
+        $$ = f_ptr<False>();
     }
 ;
 

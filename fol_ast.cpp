@@ -92,7 +92,10 @@ static unsigned precedence(std::shared_ptr<Formula> formula)
             [](const AtomWrapper &node) {
                 return 6;
             },
-            [](const LogicConstant &node) {
+            [](const True &node) {
+                return 6;
+            },
+            [](const False &node) {
                 return 6;
             },
             [](const Negation &node) {
@@ -135,8 +138,11 @@ std::string formula_to_string(std::shared_ptr<Formula> formula)
             [](const AtomWrapper &node) {
                 return atomic_formula_to_string(node.atom);
             },
-            [](const LogicConstant &node) {
-                return node.value ? std::string("T") : std::string("F");
+            [](const True &node) {
+                return std::string("T");
+            },
+            [](const False &node) {
+                return std::string("F");
             },
             [&formula](const Negation &node) {
                 return "~" + wrap(node.operand, formula);
@@ -165,105 +171,132 @@ std::string formula_to_string(std::shared_ptr<Formula> formula)
 
 std::shared_ptr<Formula> simplify(std::shared_ptr<Formula> formula)
 {
-    return std::visit(
-        overloaded{
-            [&formula](const AtomWrapper &node) {
-                return formula;
-            },
-            [&formula](const LogicConstant &node) {
-                return formula;
-            },
-            [](const Negation &node) {
-                const auto subformula = simplify(node.operand);
-                if (const auto *lc = std::get_if<LogicConstant>(subformula.get())) {
-                    return f_ptr<LogicConstant>(!lc->value);
-                } else {
+    static constexpr auto simplify_negation = [](const Negation &f) {
+        const auto subformula = simplify(f.operand);
+        return std::visit(
+            overloaded{
+                [](const True &fp) {
+                    return f_ptr<False>();
+                },
+                [](const False &fp) {
+                    return f_ptr<True>();
+                },
+                [&subformula](const auto &fp) {
                     return f_ptr<Negation>(subformula);
                 }
+            }, *subformula
+        );
+    };
+
+    static constexpr auto simplify_conjuction = [](const Conjuction &f) {
+        const auto l_subformula = simplify(f.left);
+        const auto r_subformula = simplify(f.right);
+        if (std::holds_alternative<False>(*l_subformula) || std::holds_alternative<False>(*r_subformula)) {
+            return f_ptr<False>();
+        } else if (std::holds_alternative<True>(*l_subformula)) {
+            return r_subformula;
+        } else if (std::holds_alternative<True>(*r_subformula)) {
+            return l_subformula;
+        } else {
+            return f_ptr<Conjuction>(l_subformula, r_subformula);
+        }
+    };
+
+    static constexpr auto simplify_disjunction = [](const Disjunction &f) {
+        const auto l_subformula = simplify(f.left);
+        const auto r_subformula = simplify(f.right);
+        if (std::holds_alternative<True>(*l_subformula) || std::holds_alternative<True>(*r_subformula)) {
+            return f_ptr<True>();
+        } else if (std::holds_alternative<False>(*l_subformula)) {
+            return r_subformula;
+        } else if (std::holds_alternative<False>(*r_subformula)) {
+            return l_subformula;
+        } else {
+            return f_ptr<Disjunction>(l_subformula, r_subformula);
+        }
+    };
+
+    static constexpr auto simplify_implication = [](const Implication &f) {
+        const auto l_subformula = simplify(f.left);
+        const auto r_subformula = simplify(f.right);
+        if (std::holds_alternative<False>(*l_subformula) || std::holds_alternative<True>(*r_subformula)) {
+            return f_ptr<True>();
+        } else if (std::holds_alternative<True>(*l_subformula)) {
+            return r_subformula;
+        } else if (std::holds_alternative<False>(*r_subformula)) {
+            return f_ptr<Negation>(l_subformula);
+        } else {
+            return f_ptr<Implication>(l_subformula, r_subformula);
+        }
+    };
+
+    static constexpr auto simplify_equivalence = [](const Equivalence &f) {
+        const auto l_subformula = simplify(f.left);
+        const auto r_subformula = simplify(f.right);
+        if (std::holds_alternative<True>(*l_subformula)) {
+            return r_subformula;
+        } else if (std::holds_alternative<True>(*r_subformula)) {
+            return l_subformula;
+        } else if (std::holds_alternative<False>(*l_subformula)) {
+            return f_ptr<Negation>(r_subformula);
+        } else if (std::holds_alternative<False>(*r_subformula)) {
+            return f_ptr<Negation>(l_subformula);
+        } else {
+            return f_ptr<Implication>(l_subformula, r_subformula);
+        }
+    };
+
+    static constexpr auto simplify_universal_quantification = [](const UniversalQuantification &f) {
+        const auto subformula = simplify(f.formula);
+        if (std::holds_alternative<True>(*subformula) || std::holds_alternative<False>(*subformula)) {
+            return subformula;
+        } else {
+            return f_ptr<UniversalQuantification>(f.var_symbol, subformula);
+        }
+    };
+
+    static constexpr auto simplify_existential_quantification = [](const ExistentialQuantification &f) {
+        const auto subformula = simplify(f.formula);
+        if (std::holds_alternative<True>(*subformula) || std::holds_alternative<False>(*subformula)) {
+            return subformula;
+        } else {
+            return f_ptr<ExistentialQuantification>(f.var_symbol, subformula);
+        }
+    };
+
+    return std::visit(
+        overloaded{
+            [](const Negation &node) {
+                return simplify_negation(node);
             },
             [](const Conjuction &node) {
-                const auto l_subformula = simplify(node.left);
-                const auto r_subformula = simplify(node.right);
-                if (const auto *lc = std::get_if<LogicConstant>(l_subformula.get())) {
-                    return lc->value
-                        ? r_subformula
-                        : f_ptr<LogicConstant>(false);
-                } else if (const auto *lc = std::get_if<LogicConstant>(r_subformula.get())) {
-                    return lc->value
-                        ? l_subformula
-                        : f_ptr<LogicConstant>(false);
-                } else {
-                    return f_ptr<Conjuction>(l_subformula, r_subformula);
-                }
+                return simplify_conjuction(node);
             },
             [](const Disjunction &node) {
-                const auto l_subformula = simplify(node.left);
-                const auto r_subformula = simplify(node.right);
-                if (const auto *lc = std::get_if<LogicConstant>(l_subformula.get())) {
-                    return lc->value
-                        ? f_ptr<LogicConstant>(true)
-                        : r_subformula;
-                } else if (const auto *lc = std::get_if<LogicConstant>(r_subformula.get())) {
-                    return lc->value
-                        ? f_ptr<LogicConstant>(true)
-                        : l_subformula;
-                } else {
-                    return f_ptr<Disjunction>(l_subformula, r_subformula);
-                }
+                return simplify_disjunction(node);
             },
             [](const Implication &node) {
-                const auto l_subformula = simplify(node.left);
-                const auto r_subformula = simplify(node.right);
-                if (const auto *lc = std::get_if<LogicConstant>(l_subformula.get())) {
-                    return lc->value
-                        ? r_subformula
-                        : f_ptr<LogicConstant>(true);
-                } else if (const auto *lc = std::get_if<LogicConstant>(r_subformula.get())) {
-                    return lc->value
-                        ? f_ptr<LogicConstant>(true)
-                        : f_ptr<Negation>(l_subformula);
-                } else {
-                    return f_ptr<Implication>(l_subformula, r_subformula);
-                }
+                return simplify_implication(node);
             },
             [](const Equivalence &node) {
-                const auto l_subformula = simplify(node.left);
-                const auto r_subformula = simplify(node.right);
-                if (const auto *lc = std::get_if<LogicConstant>(l_subformula.get())) {
-                    return lc->value
-                        ? r_subformula
-                        : f_ptr<Negation>(r_subformula);
-                } else if (const auto *lc = std::get_if<LogicConstant>(r_subformula.get())) {
-                    return lc->value
-                        ? l_subformula
-                        : f_ptr<Negation>(l_subformula);
-                } else {
-                    return f_ptr<Equivalence>(l_subformula, r_subformula);
-                }
+                return simplify_equivalence(node);
             },
             [](const UniversalQuantification &node) {
-                const auto subformula = simplify(node.formula);
-                if (const auto *lc = std::get_if<LogicConstant>(subformula.get())) {
-                    return subformula;
-                } else {
-                    return f_ptr<UniversalQuantification>(node.var_symbol, subformula);
-                }
+                return simplify_universal_quantification(node);
             },
             [](const ExistentialQuantification &node) {
-                const auto subformula = simplify(node.formula);
-                if (const auto *lc = std::get_if<LogicConstant>(subformula.get())) {
-                    return subformula;
-                } else {
-                    return f_ptr<ExistentialQuantification>(node.var_symbol, subformula);
-                }
+                return simplify_existential_quantification(node);
+            },
+            [&formula](const auto &node) {
+                return formula;
             }
         }, *formula
     );
 }
 
-std::shared_ptr<Formula> nnf_h(std::shared_ptr<Formula> formula);
+static std::shared_ptr<Formula> nnf_h(std::shared_ptr<Formula> formula);
 
-std::shared_ptr<Formula> nnf_not(std::shared_ptr<Formula> formula)
+static std::shared_ptr<Formula> nnf_not(std::shared_ptr<Formula> formula)
 {
     return std::visit(
         overloaded{
@@ -302,16 +335,10 @@ std::shared_ptr<Formula> nnf_not(std::shared_ptr<Formula> formula)
     );
 }
 
-std::shared_ptr<Formula> nnf_h(std::shared_ptr<Formula> formula)
+static std::shared_ptr<Formula> nnf_h(std::shared_ptr<Formula> formula)
 {
     return std::visit(
         overloaded{
-            [&formula](const AtomWrapper &node) {
-                return formula;
-            },
-            [&formula](const LogicConstant &node) {
-                return formula;
-            },
             [](const Negation &node) {
                 return nnf_not(node.operand);
             },
@@ -335,6 +362,9 @@ std::shared_ptr<Formula> nnf_h(std::shared_ptr<Formula> formula)
             },
             [](const ExistentialQuantification &node) {
                 return f_ptr<ExistentialQuantification>(node.var_symbol, nnf_h(node.formula));
+            },
+            [&formula](const auto &node) {
+                return formula;
             }
         }, *formula
     );
@@ -405,8 +435,6 @@ void collect_free_variables(std::shared_ptr<Formula> formula, std::set<std::stri
             [&free_vars](const AtomWrapper &node) {
                 collect_free_variables(node.atom, free_vars);
             },
-            [](const LogicConstant &node) {
-            },
             [&free_vars](const Negation &node) {
                 collect_free_variables(node.operand, free_vars);
             },
@@ -439,6 +467,9 @@ void collect_free_variables(std::shared_ptr<Formula> formula, std::set<std::stri
                 if (!is_free) {
                     free_vars.erase(node.var_symbol);
                 }
+            },
+            [](const auto &node) {
+
             }
         }, *formula
     );
@@ -448,10 +479,6 @@ void collect_quantified_variables(std::shared_ptr<Formula> formula, std::set<std
 {
     std::visit(
         overloaded{
-            [](const AtomWrapper &node) {
-            },
-            [](const LogicConstant &node) {
-            },
             [&quantified_vars](const Negation &node) {
                 collect_quantified_variables(node.operand, quantified_vars);
             },
@@ -476,6 +503,9 @@ void collect_quantified_variables(std::shared_ptr<Formula> formula, std::set<std
             },
             [&quantified_vars](const ExistentialQuantification &node) {
                 quantified_vars.insert(node.var_symbol);
+            },
+            [](const auto &node) {
+
             }
         }, *formula
     );
@@ -545,7 +575,10 @@ std::shared_ptr<Formula> substitute(std::shared_ptr<Formula> formula, const std:
             [&var, &s_var](const AtomWrapper &node) {
                 return f_ptr<AtomWrapper>(substitute(node.atom, var, s_var));
             },
-            [&formula](const LogicConstant &node) {
+            [&formula](const True &node) {
+                return formula;
+            },
+            [&formula](const False &node) {
                 return formula;
             },
             [&var, &s_var](const Negation &node) {
@@ -627,7 +660,10 @@ std::shared_ptr<Formula> pull_quantifiers(std::shared_ptr<Formula> formula)
             [&formula](const AtomWrapper &node) {
                 return formula;
             },
-            [&formula](const LogicConstant &node) {
+            [&formula](const True &node) {
+                return formula;
+            },
+            [&formula](const False &node) {
                 return formula;
             },
             [&formula](const Negation &node) {
@@ -694,7 +730,10 @@ std::shared_ptr<Formula> pnf_h(std::shared_ptr<Formula> formula)
             [&formula](const AtomWrapper &node) {
                 return formula;
             },
-            [&formula](const LogicConstant &node) {
+            [&formula](const True &node) {
+                return formula;
+            },
+            [&formula](const False &node) {
                 return formula;
             },
             [&formula](const Negation &node) {
@@ -732,7 +771,10 @@ std::shared_ptr<Formula> dnf_h(std::shared_ptr<Formula> formula)
             [&formula](const AtomWrapper &node) {
                 return formula;
             },
-            [&formula](const LogicConstant &node) {
+            [&formula](const True &node) {
+                return formula;
+            },
+            [&formula](const False &node) {
                 return formula;
             },
             [&formula](const Negation &node) {

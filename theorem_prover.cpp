@@ -134,7 +134,10 @@ std::shared_ptr<Formula> simplify_constraints(std::shared_ptr<Formula> formula)
             [](const AtomWrapper &node) {
                 return simplify_constraints(node.atom);
             },
-            [&formula](const LogicConstant &node) {
+            [&formula](const True &node) {
+                return formula;
+            },
+            [&formula](const False &node) {
                 return formula;
             },
             [](const Negation &node) {
@@ -176,7 +179,10 @@ std::shared_ptr<Formula> TheoremProver::eliminate_quantifiers(std::shared_ptr<Fo
             [&formula](const AtomWrapper &node) {
                 return formula;
             },
-            [&formula](const LogicConstant &node) {
+            [&formula](const True &node) {
+                return formula;
+            },
+            [&formula](const False &node) {
                 return formula;
             },
             [&formula](const Negation &node) {
@@ -213,7 +219,7 @@ std::shared_ptr<Formula> TheoremProver::eliminate_variable(std::shared_ptr<Formu
     m_log << "\tBase formula" << (is_existential ? "" : " (negated due to universal quantification)") << ": " << formula_to_string(base_formula) << std::endl;
     base_formula = dnf(simplify_constraints(nnf(base_formula)));
     m_log << "\tBase formula DNF: " << formula_to_string(base_formula) << std::endl;
-    if (!std::holds_alternative<LogicConstant>(*base_formula)) {
+    if (!std::holds_alternative<True>(*base_formula) && !std::holds_alternative<False>(*base_formula)) {
         auto constraints = formula_to_constraints(base_formula, var_map);
         for (auto &conjuction : constraints) {
             conjuction.eliminate_variable(var_map.get_variable_number(quantified_variable));
@@ -360,7 +366,7 @@ std::shared_ptr<Formula> conjuction_to_formula(const ConstraintConjuction<Fracti
 {
     const auto &constraints = conjuction.get_constraints();
     if (constraints.size() == 0) {
-        return f_ptr<LogicConstant>(true);
+        return f_ptr<True>();
     } else {
         auto acc = constraint_to_formula(constraints[0], var_map);
         for (std::size_t i = 1; i < constraints.size(); i++) {
@@ -373,7 +379,7 @@ std::shared_ptr<Formula> conjuction_to_formula(const ConstraintConjuction<Fracti
 std::shared_ptr<Formula> constraints_to_formula(const std::vector<ConstraintConjuction<Fraction>> &constraints, const VariableMapping &var_map)
 {
     if (constraints.size() == 0) {
-        return f_ptr<LogicConstant>(false);
+        return f_ptr<False>();
     } else {
         auto acc = conjuction_to_formula(constraints[0], var_map);
         for (std::size_t i = 1; i < constraints.size(); i++) {
@@ -437,8 +443,11 @@ bool evaluate(const std::shared_ptr<Formula> formula)
             [](const AtomWrapper &node) {
                 return evaluate(node.atom);
             },
-            [](const LogicConstant &node) {
-                return node.value;
+            [](const True &node) {
+                return true;
+            },
+            [](const False &node) {
+                return false;
             },
             [](const Negation &node) {
                 return !evaluate(node.operand);

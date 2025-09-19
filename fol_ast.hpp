@@ -77,9 +77,14 @@ struct AtomWrapper
     std::shared_ptr<Atom> atom;
 };
 
-struct LogicConstant
+struct True
 {
-    bool value;
+
+};
+
+struct False
+{
+
 };
 
 struct Negation
@@ -119,7 +124,7 @@ struct ExistentialQuantification
     std::shared_ptr<Formula> formula;
 };
 
-struct Formula : public std::variant<AtomWrapper, LogicConstant, Negation, Conjuction, Disjunction, Implication, Equivalence, UniversalQuantification, ExistentialQuantification>
+struct Formula : public std::variant<AtomWrapper, True, False, Negation, Conjuction, Disjunction, Implication, Equivalence, UniversalQuantification, ExistentialQuantification>
 {
     using variant::variant;
 };
