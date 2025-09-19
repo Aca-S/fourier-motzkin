@@ -6,7 +6,7 @@ int main(int argc, char *argv[])
 {
     TheoremProver prover(std::cout);
     std::cout << prover.is_theorem("!x.!y.!z.x < y & y < z => x < z") << std::endl;
-    // std::cout << prover.is_theorem("!x.!y.x < y => !z.x < z => z < y") << std::endl;
+    std::cout << prover.is_theorem("!x.!y.x < y => !z.x < z => z < y") << std::endl;
     // std::cout << prover.is_theorem("?x.x>0 & x<0") << std::endl;
     // std::cout << prover.is_theorem("!x.!y.!z.2*x < 3*y & 3*x < 2*y & 7*y < 5*z => 14*x < 10*z") << std::endl;
     // std::cout << prover.is_theorem("!x.!y.x > 0 & y > 0 => x + y > 0") << std::endl;

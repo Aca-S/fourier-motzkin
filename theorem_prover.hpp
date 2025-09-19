@@ -1,9 +1,10 @@
 #ifndef THEOREM_PROVER_HPP
 #define THEOREM_PROVER_HPP
 
-#include "fol_driver.hpp"
+#include "fol_ast.hpp"
 
 #include <string>
+#include <memory>
 #include <ostream>
 #include <map>
 
@@ -36,7 +37,6 @@ public:
     bool is_theorem(const std::string &fol_formula) const;
 
 private:
-    mutable FOLDriver m_driver;
     std::ostream &m_log;
 
     std::shared_ptr<Formula> eliminate_quantifiers(std::shared_ptr<Formula> formula, VariableMapping &var_map) const;

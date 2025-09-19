@@ -1,5 +1,6 @@
 #include "theorem_prover.hpp"
 #include "fourier_motzkin.hpp"
+#include "fol_string_conversion.hpp"
 
 #include <stdexcept>
 #include <cassert>
@@ -15,7 +16,7 @@ TheoremProver::TheoremProver(std::ostream &log)
 
 bool TheoremProver::is_theorem(const std::string &fol_formula) const
 {
-    auto formula = m_driver.parse(fol_formula);
+    auto formula = string_to_formula(fol_formula);
     if (!formula) {
         throw std::invalid_argument("Parsing failed: \"" + fol_formula + "\" is not a valid first order logic formula");
     }

@@ -157,8 +157,6 @@ std::shared_ptr<Formula> f_ptr(Args&&... args)
     return std::make_shared<Formula>(T(args...));
 }
 
-std::string formula_to_string(std::shared_ptr<Formula> formula);
-
 // Removes logical constants from the given formula or transforms it to a constant itself.
 std::shared_ptr<Formula> simplify(std::shared_ptr<Formula> formula);
 
