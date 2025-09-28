@@ -10,7 +10,7 @@
 \usepackage{algpseudocode}
 \usepackage{listings}
 
-\title{Implementacija Furije-Mockinove procedure za ispitivanje zadovoljivosti konjukcije linearnih ograničenja\\ \small{Seminarski rad u okviru kursa\\Automatsko rezonovanje\\Matematički fakultet}}
+\title{Implementacija Furije-Mockinove procedure za ispitivanje zadovoljivosti konjunkcije linearnih ograničenja\\ \small{Seminarski rad u okviru kursa\\Automatsko rezonovanje\\Matematički fakultet}}
 \author{Aleksandar Stefanović, 1021/2023}
 
 \begin{document}
@@ -31,12 +31,12 @@ Furije-Mockinova procedura se, kao metod za proveru zadovoljivosti sistema nejed
 
 Furije-Mockinova procedura, u svojoj osnovi, predstavlja metod za proveru zadovoljivosti skupa linearnih ograničenja \cite{theory_of_linear_and_integer_programming}. Međutim, kako je ova procedura zasnovana na eliminaciji promenljivih, ona se može razmatrati i u kontekstu procedure odlučivanja, zasnovane na eliminaciji kvantifikatora, u linearnom fragmentu teorije uređenih polja \cite{quantifier_elimination_fourier_motzkin}.
 
-Rad je organizovan na sledeći način. Poglavlje \ref{sec:osnove} predstavlja osnovne definicije i pojmove koji će se koristiti u ostatku rada. Poglavlje \ref{sec:opis_metode} daje detaljan opis Furije-Mockinove procedure, kako u kontekstu metoda za proveru zadovoljivosti linearnih ograničenja, tako i u kontekstu njegovog proširenja u proceduru odlučivanja u linearnom fragmentu teorije uređenih polja. Konačno, poglavlje \ref{sec:implementacija} daje pregled implementacije Furije-Mockinove procedure.
+Rad je organizovan na sledeći način. Poglavlje \ref{sec:osnove} predstavlja osnovne definicije i pojmove koji će se koristiti u ostatku rada. Poglavlje \ref{sec:opis_metode} daje detaljan opis Furije-Mockinove procedure, kako u kontekstu metoda za proveru zadovoljivosti linearnih ograničenja, tako i u kontekstu njegovog proširenja u proceduru odlučivanja u linearnom fragmentu teorije uređenih polja. Poglavlje \ref{sec:implementacija} daje pregled implementacije Furije-Mockinove procedure. Konačno, poglavlje \ref{sec:zakljucak} daje osvrt na celokupan rad i potencijalne pravce daljeg razvoja.
 
 \section{Osnove}
 \label{sec:osnove}
 
-U ovom poglavlju će biti predstavljeni osnovni pojmovi i definicije koje će se koristiti u nastavku rada. U poglavlju \ref{subsec:problemi_ogranicenja} su definisani pojmovi problema ograničenja i jedne njihove varijante --- problema zadovoljivosti linearnih ograničenja. Poglavlje \ref{subsec:logika_prvog_reda} opisuje osnovne aspekte logike prvog reda, a poglavlje \ref{subsec:teorija_uredjenih_polja} opisuje jezik logike prvog reda koji će biti korišćen u ostatku rada.
+U ovom poglavlju će biti predstavljeni osnovni pojmovi i definicije koje će se koristiti u nastavku rada. U odeljku \ref{subsec:problemi_ogranicenja} su definisani pojmovi problema ograničenja i jedne njihove varijante --- problema zadovoljivosti linearnih ograničenja. Odeljak \ref{subsec:logika_prvog_reda} opisuje osnovne aspekte logike prvog reda, a odeljak \ref{subsec:teorija_uredjenih_polja} opisuje jezik logike prvog reda koji će biti korišćen u ostatku rada.
 
 \subsection{Problemi ograničenja}
 \label{subsec:problemi_ogranicenja}
@@ -63,11 +63,11 @@ Jedno očigledno rešenje datog skupa nejednakosti je $x = 2$ i $y = \frac{1}{2}
 \subsection{Logika prvog reda}
 \label{subsec:logika_prvog_reda}
 
-Logika prvog reda, ili predikatska logika, formalni je sistem za zadavanje odnosa između logičkih objekata. Uvodeći, između ostalog, egzistencijalne i univerzalne kvantifikatore, kao i funkcijske i predikatske simbole, logika prvog reda je izražajnija od iskazne logike koja je omogućavala samo predstavljanje iskaza i zadavanje jednostavnih odnosa između njih. Glavni aspekti logike prvog reda su njena sintaksa, semantika i deduktivni sistemi koji se bave konstrukcijom (tj.~izvođenjem) dokaza na osnovu aksioma (tvrđenja koja uvek važe) u logičkom sistemu.
+Logika prvog reda, ili predikatska logika, formalni je sistem za opisivanje odnosa između logičkih objekata. Uvodeći, između ostalog, egzistencijalne i univerzalne kvantifikatore, kao i funkcijske i predikatske simbole, logika prvog reda je izražajnija od iskazne logike koja je omogućavala samo predstavljanje iskaza i zadavanje jednostavnih odnosa između njih. Glavni aspekti logike prvog reda su njena sintaksa, semantika i deduktivni sistemi koji se bave konstrukcijom (tj.~izvođenjem) dokaza na osnovu aksioma (tvrđenja koja uvek važe) u logičkom sistemu.
 
 \subsubsection{Sintaksa logike prvog reda}
 
-Sintaksa logike prvog reda opisuje strukturu njenih validnih formula, bez razmatranja značenja tih formula ili njihovih elemenata. Pre definisanja strukture formule logike prvog reda, potrebno je definisati pojam signature.
+Sintaksa logike prvog reda opisuje strukturu njenih formula, bez razmatranja značenja tih formula ili njihovih elemenata. Pre definisanja strukture formule logike prvog reda, potrebno je definisati pojam signature.
 
 \textbf{Signatura (ili jezik) $\mathcal{L}$} je uređena trojka $\mathcal{L} = (\Sigma, \Pi, ar)$, pri čemu $\Sigma$ označava skup funkcijskih simbola, $\Pi$ skup predikatskih simbola, a $ar$ funkciju $ar: \Sigma \cup \Pi \rightarrow \mathbb{N}$ koja dodeljuje arnost, tj.~broj argumenata, svim funkcijskim i predikatskim simbolima. Struktura formule logike prvog reda, nad nekom signaturom $\mathcal{L}$, formalno se može definisati preko narednih pojmova:
 \begin{description}
@@ -97,7 +97,7 @@ Prioriteti logičkih veznika su, u opadajućem redosledu, $\lnot, \land, \lor, \
 
 \subsubsection{Semantika logike prvog reda}
 
-Semantika logike prvog reda dodeljuje značenje validnim formulama prvog reda. U svrhe definisanja semantike, a time i tačnosti formula, uvode se naredni pojmovi:
+Semantika logike prvog reda dodeljuje značenje formulama prvog reda. U svrhe definisanja semantike, a time i tačnosti formula, uvode se naredni pojmovi:
 
 \begin{description}
     \item[$\mathcal{L}$-struktura $\mathcal{D}$] --- $\mathcal{L}$-struktura $\mathcal{D}$, definisana nad signaturom $\mathcal{L}$, definiše domen, u oznaci $D$, kao i interpretacije funkcijskih i predikatskih simbola. Za funkcijski simbol $f$ arnosti $k$ ovo podrazumeva funkciju $f_\mathcal{D}:D^k \rightarrow D$, a za predikatski simbol $p$ arnosti $l$ ovo podrazumeva funkciju $p_\mathcal{D}: D^l \rightarrow \{0, 1\}$.
@@ -108,20 +108,20 @@ Semantika logike prvog reda dodeljuje značenje validnim formulama prvog reda. U
 U kontekstu određivanja tačnosti formule, definišu se i naredni pojmovi:
 \begin{description}
     \item[Zadovoljivost] --- Ukoliko za neku $\mathcal{L}$-strukturu $\mathcal{D}$ i valuaciju $v$ za formulu $A$ važi $I_v(A) = 1$, onda se za formulu $A$ kaže da je zadovoljiva, a za par $(\mathcal{D}, v)$ da je model formule $A$, u oznaci $(\mathcal{D}, v) \vDash A$.
-    \item[Tautologičnost] --- Ukoliko je za neku $\mathcal{L}$-strukturu $\mathcal{D}$ interpretacije formule $A$ tačna za svaku valuaciju $v$, onda se za formulu $A$ kaže da je tautologija u $\mathcal{L}$-strukturi $\mathcal{D}$, u oznaci $\mathcal{D} \vDash A$. Ukoliko ovo važi za svaku $\mathcal{L}$-strukturu $\mathcal{D}$, onda se za formulu $A$ kaže da je tautologija, u oznaci $\vDash A$.
+    \item[Valjanost] --- Ukoliko je za neku $\mathcal{L}$-strukturu $\mathcal{D}$ interpretacije formule $A$ tačna za svaku valuaciju $v$, onda se za formulu $A$ kaže da je valjana u $\mathcal{L}$-strukturi $\mathcal{D}$, u oznaci $\mathcal{D} \vDash A$. Ukoliko ovo važi za svaku $\mathcal{L}$-strukturu $\mathcal{D}$, onda se za formulu $A$ kaže da je valjana, u oznaci $\vDash A$.
     \item[Ekvizadovoljivost] --- Formule $A$ i $B$ su ekvizadovoljive, u oznaci $A \equiv_s B$, ako i samo ako su obe zadovoljive ili su obe nezadovoljive.
     \item[Ekvivalentnost] --- Formule $A$ i $B$ su ekvivalentne, u oznaci $A \equiv B$, ako i samo ako za svaku $\mathcal{L}$-strukturu $\mathcal{D}$ i svaku valuaciju $v$ važi $(\mathcal{D}, v) \vDash A$ akko $(\mathcal{D}, v) \vDash B$.
 \end{description}
 
 \subsubsection{Deduktivni sistemi}
 
-Uloga deduktivnih sistema je ispitivanje dokazivosti i dokazivanje tvrđenja u datom logičkom sistemu. Za razliku od semantičkog pristupa, u kojem se se zadovoljivost (ili tautologičnost) dokazuju ili opovrgavaju na osnovu semantike, tj.~interpretacije simbola, dokazivanje u deduktivnim sistemima podrazumeva izvođenje dokaza na osnovu sintaksičkih pravila i skupa polaznih pretpostavki. Osnovni pojmovi pri razmatranju deduktivnih sistema su:
+Uloga deduktivnih sistema je ispitivanje dokazivosti i dokazivanje tvrđenja u datom logičkom sistemu. Za razliku od semantičkog pristupa, u kojem se se zadovoljivost (ili valjanost) dokazuju ili opovrgavaju na osnovu semantike, tj.~interpretacije simbola, dokazivanje u deduktivnim sistemima podrazumeva izvođenje dokaza na osnovu sintaksičkih pravila i skupa polaznih pretpostavki. Osnovni pojmovi pri razmatranju deduktivnih sistema su:
 
 \begin{description}
     \item[Aksoima] --- Tvrđenje za koje se pretpostavlja da uvek važi. Aksiome predstavljaju početne tvrdnje u dokazima u deduktivnim sistemima.
     \item[Teorema] --- Formula $A$ je teorema, u oznaci $\vdash A$, ako i samo ako se za $A$ može konstruisati dokaz samo iz skupa aksioma.
     \item[Teorija] --- Teorija $\mathcal{T}$ nad signaturom $\mathcal{L}$ zadata skupom aksioma $Ax(\mathcal{T})$ je skup svih teorema u odnosu na aksiome $Ax(\mathcal{T})$.
-    \item[Model teorije] --- Model teorije $\mathcal{T}$ je signatura $\mathcal{L}$ u kojoj su sve formule iz $Ax(\mathcal{T})$ tačne.
+    \item[Model teorije] --- Model teorije $\mathcal{T}$ je $\mathcal{L}$-struktura u kojoj su sve formule iz $Ax(\mathcal{T})$ tačne.
 \end{description}
 
 \subsubsection{Normalne forme}
@@ -132,28 +132,31 @@ Primenom određenih sintaksičkih transformacija, formula logike prvog reda se m
     \item[Negaciona normalna forma (NNF)] --- Formula prvog reda je u NNF akko je izgrađena od literala (atomičkih formula ili njihovih negacija) korišćenjem isključivo veznika $\land$ i $\lor$, kvantifikatora $\forall$ i $\exists$ ili je logička konstanta ($\top$ ili $\bot$). Svaka formula se može dovesti do njoj ekvivalentne formule u negacionoj normalnoj formi.
     \item[Preneks normalna forma] --- Formula prvog reda je u preneks normalnoj formi akko je oblika $Q_1x_1. ... Q_nx_n.F$, pri čemu su $Q_i$ kvantifikatori, a $F$ formula koja ne sadrži kvantifikatore. Svaka formula se može dovesti do njoj ekvivalentne formule u preneks normalnoj formi.
     \item[Skolemova normalna forma] --- Formula prvog reda je u Skolemovoj normalnoj formi akko je oblika $\forall x_1. ... \forall x_n.F$, pri čemu formula $F$ ne sadrži kvantifikatore. Formula $F$ se u ovom slučaju naziva i \textit{matrica}. Svaka formula se može dovesti do njoj ekvizadovoljive (ne nužno i ekvivalentne) formule u Skolemovoj normalnoj formi.
-    \item[Konjuktivna (KNF) i disjunktivna (DNF) normalna forma] --- O konjuktivnoj i disjunktivnoj normalnoj formi se obično govori u kontekstu nekvantifikovanog dela formule u preneks ili Skolemovoj (matrice u ovom slučaju) normalnoj formi. Nekvantifikovana formula $F$ je u konjuktivnoj normalnoj formi akko je oblika $(l_{11} \lor ... \lor l_{1m_1}) \land ... \land (l_{n1} \lor ... \lor l_{nm_n})$, pri čemu su $l_i$ literali. Analogno, nekvantifikovana formula je u disjunktivnoj normalnoj formi akko je oblika $(l_{11} \land ... \land l_{1m_1}) \lor ... \lor (l_{n1} \land ... \land l_{nm_n})$.
+    \item[Konjunktivna (KNF) i disjunktivna (DNF) normalna forma] --- O konjunktivnoj i disjunktivnoj normalnoj formi se obično govori u kontekstu nekvantifikovanog dela formule u preneks ili Skolemovoj (matrice u ovom slučaju) normalnoj formi. Nekvantifikovana formula $F$ je u konjunktivnoj normalnoj formi akko je oblika $(l_{11} \lor ... \lor l_{1m_1}) \land ... \land (l_{n1} \lor ... \lor l_{nm_n})$, pri čemu su $l_i$ literali. Analogno, nekvantifikovana formula je u disjunktivnoj normalnoj formi akko je oblika $(l_{11} \land ... \land l_{1m_1}) \lor ... \lor (l_{n1} \land ... \land l_{nm_n})$.
 \end{description}
 
 \subsection{Jezik logike prvog reda nad linearnim fragmentom teorije uređenih polja}
 \label{subsec:teorija_uredjenih_polja}
 
-Polje racionalnih brojeva je jedan od modela teorije uređenih polja. Upravo ovaj model će se razmatrati u ostatku rada. Njemu odgovarajuća signatura je sledeća --- $\mathcal{L} = (\mathbb{Q}, +, \cdot, \leq)$, pri čemu svi simboli imaju naredne arnosti i interpretacije:
+Signatura teorije uređenih polja je sledeća --- $\mathcal{L} = (0, 1, +, \cdot, \leq)$, pri čemu simboli imaju naredne arnosti:
 \begin{itemize}
-    \item $\mathbb{Q}$ --- Simboli konstanti koji odgovaraju racionalnim brojevima.
-    \item $+$ --- Funkcijski simbol arnosti $2$ koji se interpretira kao standardno sabiranje nad racionalnim brojevima.
-    \item $\cdot$ --- Funkcijski simbol arnosti $2$ koji se interpretira kao standardno množenje nad racionalnim brojevima.
-    \item $\leq$ --- Predikatski simbol arnosti $2$ koji se interpretira kao poređenje \textit{manje ili jednako}\footnote{Bez narušavanja korektnosti, predstavljena implementacija proširuje signaturu sa ostalim standardnim relacijama jednakosti i nejednakosti.} nad racionalnim brojevima.
+    \item $0$ --- Funkcijski simbol arnosti $0$.
+    \item $1$ --- Funkcijski simbol arnosti $0$.
+    \item $+$ --- Funkcijski simbol arnosti $2$, zapisan infiksno.
+    \item $\cdot$ --- Funkcijski simbol arnosti $2$, zapisan infiksno.
+    \item $\leq$ --- Predikatski simbol arnosti $2$, zapisan infiksno.
 \end{itemize}
 
-Furije-Mockinova procedura, koja je opisana u poglavlju \ref{sec:opis_metode}, ograničava se na linearni fragment teorije uređenih polja, te je primena množenja dozvoljena samo nad simbolima konstanti ili jednom konstantom i jednom promenljivom. Prema tome, $\forall x.\forall y.x > 0 \land y > 0 \implies x + y > 0$ je primer validne formule, dok $\forall x.x \cdot x \geq 0$ to nije.
+Polje racionalnih brojeva je jedan od modela teorije uređenih polja. Domen ovog modela odgovara skupu racionalnih brojeva $\mathbb{Q}$, a prethodno navedeni simboli se, redom, interpretiraju kao racionalni brojevi $0$ i $1$, operacije sabiranja i množenja nad racionalnim brojevima i relacija \textit{manje ili jednako}\footnote{Bez narušavanja korektnosti, predstavljena implementacija proširuje posmatrani model sa ostalim standardnim relacijama jednakosti i nejednakosti.} nad racionalnim brojevima. Upravo ovaj model će se razmatrati u ostatku rada. 
+
+Furije-Mockinova procedura, koja je opisana u poglavlju \ref{sec:opis_metode}, ograničava se na linearni fragment teorije uređenih polja, te je primena množenja dozvoljena samo nad simbolima konstanti ili jednom konstantom i jednom promenljivom. Prema tome, $\forall x.\forall y.x > 0 \land y > 0 \implies x + y > 0$ je primer dopuštene formule, dok $\forall x.x \cdot x \geq 0$ to nije.
 
 \section{Opis metode}
 \label{sec:opis_metode}
 
 Glavna ideja iza Furije-Mockinove procedure je da je, pod pretpostavkom određenih aksioma teorije u kojoj se rezonuje, skup linearnih ograničenja moguće transformisati u skup ograničenja sa manjim brojem promenljivih od polaznog, pri čemu su transformisani i polazni skup ograničenja ekvizadovoljivi. Nakon eliminacije svih promenljivih iz skupa ograničenja, po jedne u svakoj iteraciji procedure, dobija se skup ograničenja za koji se trivijalno može proveriti da li je zadovoljiv ili ne. Eliminacija neke fiksirane promenljive $x_i$ iz skupa ograničenja se može izvršiti na dva načina --- eliminacijom po jednakosti i eliminacijom po nejednakostima.
 
-U nastavku poglavlja će biti opisani osnovni koraci Furije-Mockinove procedure, nakon čega će biti opisano i proširenje procedure za rezonovanje u kontekstu procedure odlučivanja u oređenim teorijama prvog reda. Radi veće čitljivosti, u nastavku važi pretpostavka da se procedura primenjuje za rezonovanje u polju racionalnih brojeva $\mathbb{Q}$.
+U nastavku poglavlja će biti opisani osnovni koraci Furije-Mockinove procedure, nakon čega će biti opisano i proširenje procedure za rezonovanje u kontekstu procedure odlučivanja u oređenim teorijama prvog reda. Određenosti radi, u nastavku važi pretpostavka da se procedura primenjuje za rezonovanje u polju racionalnih brojeva $\mathbb{Q}$.
 
 \subsection{Eliminacija promenljive po jednakosti}
 
@@ -224,7 +227,7 @@ U ograničenjima je preostala samo promenljiva $z$. Ponovom primenom eliminacije
 
 \subsection{Proširenje do procedure odlučivanja u linearnom fragmentu teorije uređenih polja}
 
-U kontekstu logike prvog reda, skup linearnih ograničenja se može posmatrati i kao njihova konjukcija, pri čemu je svako ograničenje neka atomička formula. Kako se Furije-Mockinovom procedurom eliminišu promenljive iz konjukcije linearnih ograničenja, pri čemu ona ostaje ekvizadovoljiva polaznoj konjukciji, a kvantifikator koji ne vezuje ni jednu promenljivu u formuli logike prvog reda ne utiče na njenu semantiku, ispostavlja se da je Furije-Mockinova procedura primenljiva i kao procedura odlučivanja za određene teorije prvog reda. U nastavku se pretpostavlja da je reč o linearnom fragmentu teorije uređenih polja.
+U kontekstu logike prvog reda, skup linearnih ograničenja se može posmatrati i kao njihova konjunkcija, pri čemu je svako ograničenje neka atomička formula. Kako se Furije-Mockinovom procedurom eliminišu promenljive iz konjunkcije linearnih ograničenja, pri čemu ona ostaje ekvizadovoljiva polaznoj konjunkciji, a kvantifikator koji ne vezuje ni jednu promenljivu u formuli logike prvog reda ne utiče na njenu semantiku, ispostavlja se da je Furije-Mockinova procedura primenljiva i kao procedura odlučivanja za određene teorije prvog reda. U nastavku se pretpostavlja da je reč o linearnom fragmentu teorije uređenih polja.
 
 Neka je data proizvoljna rečenica u preneks normalnoj formi (ukoliko nije u preneks normalnoj formi, lako se može dovesti do nje), pri čemu sve njene atomičke potformule predstavljaju linearna ograničenja. Tada se za eliminaciju kvantifikatora u datoj formuli može primeniti algoritam \ref{alg:fm_fol_formula}.
 
@@ -269,10 +272,10 @@ Celokupna implementacija se nalazi u direktorijumu \texttt{source/}. Projekat je
 
 \begin{description}
     \item[\texttt{Constraint<T>}] --- Generička klasa koja predstavlja jedno linearno ograničenje. U zavisnosti od parametra \texttt{T}, ograničenje može biti definisano u različitim uređenim poljima.
-    \item[\texttt{ConstraintConjuction<T>}] --- Predstavlja konjukciju linearnih ograničenja. Dva glavna javna metoda ove klase su:
+    \item[\texttt{ConstraintConjuction<T>}] --- Predstavlja konjunkciju linearnih ograničenja. Dva glavna javna metoda ove klase su:
         \begin{description}
-            \item[\texttt{bool is\_satisfiable()}] --- Proverava da li je data konjukcija linearnih ograničenja zadovoljiva.
-            \item[\texttt{void eliminate\_variable(std::size\_t var\_index)}] --- Furije-Mockinovom procedurom eliminiše promenljivu sa zadatim indeksom iz konjukcije linearnih ograničenja.
+            \item[\texttt{bool is\_satisfiable()}] --- Proverava da li je data konjunkcija linearnih ograničenja zadovoljiva.
+            \item[\texttt{void eliminate\_variable(std::size\_t var\_index)}] --- Furije-Mockinovom procedurom eliminiše promenljivu sa zadatim indeksom iz konjunkcije linearnih ograničenja.
         \end{description}
     \item[\texttt{TheoremProver}] --- Dokazivač teorema u teoriji uređenih polja. Konkretno, svi dokazi se sprovode pod pretpostavkom rada u polju racionalnih brojeva. Glavni metod ove klase je:
     \begin{description}
@@ -286,10 +289,10 @@ Pomoćne strukture i funkcije pružaju podršku za predstavljanje apstraktnog si
 
 Projekat se može izgraditi pozicioniranjem u \texttt{source} direktorijum i izvršavanjem narednih komandi: \texttt{mkdir build \&\& cd build \&\& cmake .. \&\& make}. Po završetku prevođenja, direktorijum \texttt{build} će sadržati program \texttt{fourier-motzkin} koji se dalje može pokrenuti. Za izgradnju su neophodni \texttt{C++} kompilator sa podrškom za verziju standarda jezika \texttt{C++20}, kao i instalirani paketi za \texttt{GNU Bison} (minimalna verzija 3.2) i \texttt{GNU Flex}.
 
-Izgrađeni program se pokreće bez argumenata komandne linije. Po pokretanju, na standardnom ulazu se očekuje validna formula za koju je ispituje da li je teorema. Prosleđena formula ne mora biti u preneks normalnoj formi --- dokazivač će je sam konvertovati u nju. U slučaju da formula nije rečenica, sve slobodne promenljive u formuli će biti vezane egzistencijalnim kvantifikatorom. Primer upotrebe prikazan je listingom \ref{lst:example_run}.
+Izgrađeni program se pokreće bez argumenata komandne linije. Po pokretanju, na standardnom ulazu se očekuje formula prvog reda za koju se ispituje da li je teorema. Prosleđena formula ne mora biti u preneks normalnoj formi --- dokazivač će je sam konvertovati u nju. U slučaju da formula nije rečenica, sve slobodne promenljive u formuli će biti vezane egzistencijalnim kvantifikatorom. Primer upotrebe prikazan je listingom \ref{lst:example_run}.
 
 
-\begin{lstlisting}[basicstyle=\ttfamily\small,captionpos=b,caption={Primer pokretanja \texttt{fourier-motzkin} programa}, label=lst:example_run]
+\begin{lstlisting}[basicstyle=\ttfamily\small,captionpos=b,caption={Primer pokretanja i izvršavanja programa \texttt{fourier-motzkin}}, label=lst:example_run]
 $ ./fourier-motzkin
 !x.!y.x > 0 & y > 0 => x + y > 0
 ========== [PROOF START] ==========
@@ -319,9 +322,9 @@ $ ./fourier-motzkin
 \section{Zaključak}
 \label{sec:zakljucak}
 
-U radu su predstavljeni osnovni pojmovi i definicije koje su bitne u kontekstu rešavanja problema ograničenja i dokazivanja teorema u teoriji uređenih polja. Nakon toga, dat je detaljan opis Furije-Mockinove procedure za rešavanje konjukcije linearnih ograničenja. Konačno, kao glavni doprinos rada, implementiran je dokazivač teorema u linearnom fragmentu teorije uređenih polja zasnovan na Furije-Mockinovoj proceduri.
+U radu su predstavljeni osnovni pojmovi i definicije koje su bitne u kontekstu rešavanja problema ograničenja i dokazivanja teorema u teoriji uređenih polja. Nakon toga, dat je detaljan opis Furije-Mockinove procedure za rešavanje konjunkcije linearnih ograničenja. Konačno, kao glavni doprinos rada, implementiran je dokazivač teorema u linearnom fragmentu teorije uređenih polja zasnovan na Furije-Mockinovoj proceduri.
 
-Jedan moguć pravac daljeg razvoja je implementacija različitih heuristika za izbor redosleda eliminacije promenljivih iz konjukcije linearnih ograničenja, čime bi se smanjio efekat kombinatorne eksplozije. Kao dodatna mogućnost, mogu se razmotriti i tehnike za izbegavanje generisanja i čuvanja redundantnih ograničenja (ograničenja koja su posledica ostalih ograničenja u konjukciji).
+Jedan moguć pravac daljeg razvoja je implementacija različitih heuristika za izbor redosleda eliminacije promenljivih iz konjunkcije linearnih ograničenja, čime bi se smanjio efekat kombinatorne eksplozije. Kao dodatna mogućnost, mogu se razmotriti i tehnike za izbegavanje generisanja i čuvanja redundantnih ograničenja (ograničenja koja su posledica ostalih ograničenja u konjunkciji).
 
 \begin{thebibliography}{100}
 \bibitem{theory_of_linear_and_integer_programming} Schrijver, Alexander, Theory of linear and integer programming. John Wiley \& Sons, Inc., 1986.
