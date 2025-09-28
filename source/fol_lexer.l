@@ -59,7 +59,7 @@
     return yy::parser::make_FALSE_T();
 }
 
-[ \t\r]+ {
+[ \t\r\n]+ {
 
 }
 

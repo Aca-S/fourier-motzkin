@@ -1,0 +1,321 @@
+\documentclass[a4paper,10pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T2A]{fontenc}
+\usepackage[serbian]{babel}
+\usepackage[hidelinks]{hyperref}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsfonts}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{listings}
+
+\title{Implementacija Furije-Mockinove procedure za ispitivanje zadovoljivosti konjukcije linearnih ograničenja\\ \small{Seminarski rad u okviru kursa\\Automatsko rezonovanje\\Matematički fakultet}}
+\author{Aleksandar Stefanović, 1021/2023}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+
+Furije-Mockinova procedura se, kao metod za proveru zadovoljivosti sistema nejednakosti, prvobitno pojavila još u prvoj polovini 19. veka. Sa razvojem oblasti automatskog rezonovanja, vremenom je pronašla i upotrebu u automatskom dokazivanju teorema. U ovom radu je predstavljena implementacija jednostavnog dokazivača teorema zasnovanog na Furije-Mockinovoj proceduri.
+
+\end{abstract}
+
+\tableofcontents
+
+\newpage
+
+\section{Uvod}
+
+Furije-Mockinova procedura, u svojoj osnovi, predstavlja metod za proveru zadovoljivosti skupa linearnih ograničenja \cite{theory_of_linear_and_integer_programming}. Međutim, kako je ova procedura zasnovana na eliminaciji promenljivih, ona se može razmatrati i u kontekstu procedure odlučivanja, zasnovane na eliminaciji kvantifikatora, u linearnom fragmentu teorije uređenih polja \cite{quantifier_elimination_fourier_motzkin}.
+
+Ostatak rada je organizovan na sledeći način. Poglavlje \ref{sec:osnove} predstavlja osnovne definicije i pojmove koji će se koristiti u ostatku rada. Poglavlje \ref{sec:opis_metode} daje detaljan opis Furije-Mockinove procedure, kako u kontekstu metoda za proveru zadovoljivosti linearnih ograničenja, tako i u kontekstu njegovog proširenja u proceduru odlučivanja u linearnom fragmentu teorije uređenih polja. Konačno, poglavlje \ref{sec:implementacija} daje pregled implementacije Furije-Mockinove procedure.
+
+\section{Osnove}
+\label{sec:osnove}
+
+U ovom poglavlju će biti predstavljeni osnovni pojmovi i definicije koje će se koristiti u nastavku rada. U poglavlju \ref{subsec:problemi_ogranicenja} su definisani problemi ograničenja i jedne njihove varijante --- problema zadovoljivosti linearnih ograničenja. Poglavlje \ref{subsec:logika_prvog_reda} opisuje osnovne aspekte logike prvog reda, a poglavlje \ref{subsec:teorija_uredjenih_polja} opisuje jezik logike prvog reda koji će biti korišćen u ostatku rada.
+
+\subsection{Problemi ograničenja}
+\label{subsec:problemi_ogranicenja}
+
+\textbf{Problem zadovoljivosti ograničenja} je uređena trojka $P = (X, D, C)$, pri čemu je:
+
+\begin{itemize}
+    \item $X = (x_1, ..., x_n)$ --- niz promenljivih;
+    \item $D = (D_1, ..., D_n)$ --- niz domena odgovarajućih promenljivih ($D_i$ je domen promenljive $x_i$);
+    \item $C = (C_1, ..., C_m)$ --- niz ograničenja nad vrednostima promenljivih ($C_k \subseteq D_1 \times ... \times D_n$).
+\end{itemize}
+
+Rešenje problema zadovoljivosti ograničenja je onda bilo koja uređena n-torka $d = (d_1, ..., d_n) \in  D_1 \times ... \times D_n$ za koju dodatno važi $d \in C_k$ za svako $C_k \in C$. Analogno, \textbf{problem ispitivanja zadovoljivosti ograničenja} je problem odlučivanja koji se bavi samo ispitivanjem da li postoji takva uređena n-torka $d$, ali ne i pronalaženjem konkretnih vrednosti odgovarajućih promenljivih. Ukoliko su ograničenja $C$ zadata kao niz linearnih (u odnosu na promenljive $x_i, ..., x_n$) jednakosti i nejednakosti oblika $a_1x_1 + a_2x_2 + ... + a_nx_n \otimes b$, pri čemu je $\otimes \in \{=, <, >, \ne, \le, \ge\}$, onda se može govoriti o \textbf{problemu (ispitivanja) zadovoljivosti linearnih ograničenja}.
+
+U nastavku sledi jedan jednostavan primer problema zadovoljivosti linearnih ograničenja. Neka su date dve promenljive, $x$ i $y$ --- potrebno je odrediti da li naredni skup linearnih nejednakosti ima bar jedno rešenje nad domenom racionalnih brojeva $\mathbb{Q}$:
+
+\begin{align*}
+    x + y < 4 \\
+    x - y > 1
+\end{align*}
+
+Jedno očigledno rešenje datog skupa nejednakosti je $x = 2$ i $y = \frac{1}{2}$, te je ovaj skup nejednakosti zadovoljiv. Međutim, kako ručno rešavanje problema zadovoljivosti linearnih ograničenja postaje nepraktično sa rastom broj promenljivih i broja ograničenja, neophodni su algoritmi za automatizaciju ovog postupka. Jedna od metoda koja to omogućava je upravo Furije-Mockinova procedura koja će biti detaljnije opisana u poglavlju \ref{sec:opis_metode}.
+
+\subsection{Logika prvog reda}
+\label{subsec:logika_prvog_reda}
+
+Logika prvog reda, ili predikatska logika, formalni je sistem za zadavanje odnosa između određenih logičkih objekata. Uvodeći, između ostalog, egzistencijalne i univerzalne kvantifikatore, kao i funkcijske i predikatske simbole, logika prvog reda je izražajnija od iskazne logike koja je omogućavala samo predstavljanje iskaza i zadavanje jednostavnih odnosa između njih. Glavni aspekti logike prvog reda su njena sintaksa, njena semantika i deduktivni sistemi koji se bave konstrukcijom (tj.~izvođenjem) dokaza na osnovu aksioma (tvrđenja koja uvek važe) u logičkom sistemu.
+
+\subsubsection{Sintaksa logike prvog reda}
+
+Sintaksa logike prvog reda opisuje strukturu njenih validnih formula, bez razmatranja značenja tih formula ili njihovih elemenata. Pre definisanja strukture formule logike prvog reda, potrebno je definisati pojam signature.
+
+\textbf{Signatura (ili jezik) $\mathcal{L}$} je uređena trojka $\mathcal{L} = (\Sigma, \Pi, ar)$, pri čemu $\Sigma$ označava skup funkcijskih simbola, $\Pi$ skup predikatskih simbola, a $ar$ funkciju $ar: \Sigma \cup \Pi \rightarrow \mathbb{N}$ koja dodeljuje arnost, tj.~broj argumenata, svim funkcijskim i predikatskim simbolima. Struktura formule logike prvog reda, nad nekom signaturom $\mathcal{L}$, formalno se može definisati preko narednih pojmova:
+\begin{description}
+    \item[Term] --- skup termova nad signaturom $\mathcal{L}$ je najmanji skup koji zadovoljava:
+    \begin{itemize}
+        \item svaka promenljiva je term;
+        \item svaki simbol konstante signature $\mathcal{L}$ je term;
+        \item ako su $t_1, t_2, ..., t_k$ termovi i $f$ funkcijski simbol signature $\mathcal{L}$ arnosti $k$, onda je i $f(t_1, ..., t_k)$ term. 
+    \end{itemize}
+    \item[Atomička formula] --- skup atomičkih formula nad signaturom $\mathcal{L}$ je najmanji skup koji zadovoljava:
+    \begin{itemize}
+        \item logičke konstante $\top$ i $\bot$ su atomičke formule;
+        \item svako iskazno slovo (predikatski simbol arnosti $0$) signature $L$ je atomička formula;
+        \item ako su $t_1, t_2, ..., t_k$ termovi i $p$ predikatstki simbol signature $\mathcal{L}$ arnosti $k$, onda je $p(t_1, ..., t_k)$ atomička formula. 
+    \end{itemize}
+    \item[Formula] --- skup formula (prvog reda) nad signaturom $\mathcal{L}$ je najmanji skup koji zadovoljava:
+    \begin{itemize}
+        \item atomičke formule su formule;
+        \item ako je $A$ formula, onda je i $\lnot A$ formula;
+        \item ako su $A$ i $B$ formule, onda su i $A \land B$, $A \lor B$, $A \implies B$ i $A \iff B$ formule;
+        \item ako je $A$ formula i $x$ promenljiva, onda su i $\exists x.A$ i $\forall x.A$ formule --- promenljiva $x$ u formuli $A$ je u ovom slučaju \textit{vezana} (promenljive koje nisu vezane ni jednim kvantifikatorom su \textit{slobodne}, a formule bez slobodnih promenljivih se nazivaju \textit{rečenice});
+        \item ako je $A$ formula, onda je i $(A)$ formula.
+    \end{itemize}
+\end{description}
+
+Prioriteti logičkih veznika su, u opadajućem redosledu, $\lnot, \land, \lor, \implies, \iff$. U implementaciji i ostatku rada, smatra se da je prioritet kvantifikatora manji od bilo kog logičkog veznika.
+
+\subsubsection{Semantika logike prvog reda}
+
+Semantika logike prvog reda dodeljuje značenje validnim formulama prvog reda. U svrhe definisanja semantike, a time i tačnosti formula, uvode se naredni pojmovi:
+
+\begin{description}
+    \item[$\mathcal{L}$-struktura $\mathcal{D}$] --- $\mathcal{L}$-struktura $\mathcal{D}$, definisana nad signaturom $\mathcal{L}$, definiše domen, u oznaci $D$, kao i interpretacije funkcijskih i predikatskih simbola. Za funkcijski simbol $f$ arnosti $k$ ovo podrazumeva funkciju $f_\mathcal{D}:D^k \rightarrow D$, a za predikatski simbol $p$ arnosti $l$ ovo podrazumeva funkciju $p_\mathcal{D}: D^l \rightarrow \{0, 1\}$.
+    \item[Valuacija $v$] --- Funkcija koja, za skup promenljivih $V$ i domen $D$ iz $\mathcal{L}$-strukture $\mathcal{D}$, svakoj promenljivoj $v \in V$ dodeljuje neku vrednosti iz domena $D$.
+    \item[Interpretacija $I_v$] --- Funkcija koja, za definisanu $\mathcal{L}$-strukturu $\mathcal{D}$ i valuaciju $v$, određuje tačnost formule logike prvog reda, tj.~vrši preslikavanje formule u skup $\{0, 1\}$.
+\end{description}
+
+U kontekstu određivanja tačnosti formule, definišu se i naredni pojmovi:
+\begin{description}
+    \item[Zadovoljivost] --- Ukoliko za neku $\mathcal{L}$-strukturu $\mathcal{D}$ i valuaciju $v$ za formulu $A$ važi $I_v(A) = 1$, onda se za formulu $A$ kaže da je zadovoljiva, a za par $(\mathcal{D}, v)$ da je model formule $A$, u oznaci $(\mathcal{D}, v) \vDash A$.
+    \item[Tautologičnost] --- Ukoliko je za neku $\mathcal{L}$-strukturu $\mathcal{D}$ interpretacije formule $A$ tačna za svaku valuaciju $v$, onda se za formulu $A$ kaže da je tautologija u $\mathcal{L}$-strukturi $\mathcal{D}$, u oznaci $\mathcal{D} \vDash A$. Ukoliko ovo važi za svaku $\mathcal{L}$-strukturu $\mathcal{D}$, onda se za formulu $A$ kaže da je tautologija, u oznaci $\vDash A$.
+    \item[Ekvizadovoljivost] --- Formule $A$ i $B$ su ekvizadovoljive, u oznaci $A \equiv_s B$, ako i samo ako su obe zadovoljive ili su obe nezadovoljive.
+    \item[Ekvivalentnost] --- Formule $A$ i $B$ su ekvivalentne, u oznaci $A \equiv B$, ako i samo ako za svaku $\mathcal{L}$-strukturu $\mathcal{D}$ i svaku valuaciju $v$ važi $(\mathcal{D}, v) \vDash A$ akko $(\mathcal{D}, v) \vDash B$.
+\end{description}
+
+\subsubsection{Deduktivni sistemi}
+
+Uloga deduktivnih sistema je ispitivanje dokazivosti i dokazivanje tvrđenja u datom logičkom sistemu. Za razliku od semantičkog pristupa, u kojem se se zadovoljivost (ili zadovoljivost) dokazuju ili opovrgavaju na osnovu semantike, tj.~interpretacije simbola, dokazivanje u deduktivnim sistemima podrazumeva izvođenje dokaza na osnovu sintaksičkih pravila i skupa polaznih pretpostavki. Osnovni pojmovi koji će se koristiti dalje u radu su:
+
+\begin{description}
+    \item[Aksoima] --- Tvrđenje za koje se pretpostavlja da uvek važi. Aksiome predstavljaju početne tvrdnje u dokazima u deduktivnim sistemima.
+    \item[Teorema] --- Formula $A$ je teorema, u oznaci $\vdash A$, ako i samo ako se za $A$ može konstruisati dokaz samo iz skupa aksioma.
+    \item[Teorija] --- Teorija $\mathcal{T}$ nad signaturom $\mathcal{L}$ zadata skupom aksioma $Ax(\mathcal{T})$ je skup svih teorema u odnosu na aksiome $Ax(\mathcal{T})$.
+    \item[Model teorije] --- Model teorije $\mathcal{T}$ je signatura $\mathcal{L}$ u kojoj su sve formule iz $Ax(\mathcal{T})$ tačne.
+\end{description}
+
+\subsection{Jezik logike prvog reda nad linearnim fragmentom teorije uređenih polja}
+\label{subsec:teorija_uredjenih_polja}
+
+Polje racionalnih brojeva je jedan od modela teorije uređenih polja. Upravo ovaj model će se razmatrati u ostatku rada. Njemu odgovarajuća signatura je sledeća --- $\mathcal{L} = (\mathbb{Q}, +, \cdot, \leq)$, pri čemu svi simboli imaju naredne arnosti i interpretacije:
+\begin{itemize}
+    \item $\mathbb{Q}$ --- Simboli konstanti koji odgovaraju racionalnim brojevima.
+    \item $+$ --- Funkcijski simbol arnosti $2$ koji se interpretira kao standardno sabiranje nad racionalnim brojevima.
+    \item $\cdot$ --- Funkcijski simbol arnosti $2$ koji se interpretira kao standardno množenje nad racionalnim brojevima.
+    \item $\leq$ --- Predikatski simbol arnosti $2$ koji se interpretira kao poređenje \textit{manje ili jednako}\footnote{Bez narušavanja korektnosti, predstavljena implementacija proširuje signaturu sa ostalim standardnim relacijama jednakosti i nejednakosti.} nad racionalnim brojevima.
+\end{itemize}
+
+Furije-Mockinova procedura, koja je opisana u poglavlju \ref{sec:opis_metode}, ograničava se na linearni fragment teorije uređenih polja, te je primena množenja dozvoljena samo nad simbolima konstanti ili jednom konstantom i jednom promenljivom. Prema tome, $\forall x.\forall y.x > 0 \land y > 0 \implies x + y > 0$ je primer validne formule, dok $\forall x.x \cdot x \geq 0$ to nije.
+
+\section{Opis metode}
+\label{sec:opis_metode}
+
+Glavna ideja iza Furije-Mockinove procedure je da je, pod pretpostavkom određenih aksioma teorije u kojoj se rezonuje, skup linearnih ograničenja moguće transformisati u skup ograničenja sa manjim brojem promenljivih od polaznog, pri čemu su transformisani i polazni skup ograničenja ekvizadovoljivi. Nakon eliminacije svih promenljivih iz skupa ograničenja, po jedne u svakoj iteraciji procedure, dobija se skup ograničenja za koji se trivijalno može proveriti da li je zadovoljiv ili ne. Eliminacija neke fiksirane promenljive $x_i$ iz skupa ograničenja se može izvršiti na dva načina --- eliminacijom po jednakosti i eliminacijom po nejednakostima.
+
+U nastavku poglavlja će biti opisani osnovni koraci Furije-Mockinove procedure, nakon čega će biti opisano i proširenje procedure za rezonovanje u kontekstu procedure odlučivanja u oređenim teorijama prvog reda. Radi veće čitljivosti, u nastavku važi pretpostavka da se procedura primenjuje za rezonovanje u polju racionalnih brojeva $\mathbb{Q}$.
+
+\subsection{Eliminacija promenljive po jednakosti}
+
+Eliminacija promenljive $x_i$ po jednakosti podrazumeva da se u skupu ograničenja nalazi ograničenje oblika $... + a_ix_i + ... = b$, $a_i \ne 0$. Tada se promenljiva $x_i$ može izraziti preko ostalih promenljivih koje učestvuju u datoj jednakosti:
+
+\begin{equation}
+    \label{eq:xi_equality}
+    x_i = \sum_{j \ne i}{c_jx_j + c}
+\end{equation}
+
+Zbog aksioma jednakosti, opravdano je zameniti sva pojavljivanja promenljive $x_i$ u skupu ograničenja sa desnom stranom jednakosti \eqref{eq:xi_equality}, a da pritom skupovi ograničenja ostanu ekvizadovoljivi. Ukoliko je transformisani skup (sa manje promenljivih) zadovoljiv, onda se vrednost promenljive $x_i$ lako može izračunati na osnovu jednakosti \eqref{eq:xi_equality}. Polazno ograničenje jednakosti, iz koje je dobijena jednakost \eqref{eq:xi_equality}, se onda može eliminisati iz skupa ograničenja.
+
+U nastavku sledi primer izvršavanja ovog koraka. Neka je dat naredni skup linearnih ograničenja:
+
+\begin{equation}
+\begin{gathered}
+    \label{eq:example_s_1}
+    x + y + z = 42 \\
+    x + 2y > 12 \\
+    y + z < 0 \\
+    z > 14
+\end{gathered}
+\end{equation}
+
+Pokušajem eliminacije promenljive $x$ iz skupa ograničenja, može se primetiti da je moguće primeniti eliminaciju po jednakosti. Promenljiva $x$ se, na osnovu jednakosti $x + y + z = 42$, može izraziti kao $x = 42 - y - z$. Zamenom ovog izraza u ostalim ograničenjima dobijamo sledeći ekvizadovoljivi skup ograničenja:
+
+
+\begin{equation}
+\begin{gathered}
+    \label{eq:example_s_2}
+    y - z > -30 \\
+    y + z < 0 \\
+    z > 14
+\end{gathered}
+\end{equation}
+
+\subsection{Eliminacija promenljive po nejednakostima}
+
+Ukoliko skup ograničenja ne sadrži ni jednu jednakost u kojoj je koeficijent uz promenljivu $x_i$ različit od nule, ona se mora eliminisati na osnovu ograničenja nejednakosti (pretpostavka je da su ove nejednakosti stroge). U tom slučaju, podskup nejednakosti koje sadrže promenljivu $x_i$ se deli na dva podskupa, $C_L$ i $C_G$. Skup nejednakosti $C_L$ sadrži sve nejednakosti koje se mogu transformisati u oblik $x_i < \sum_{j \ne i}{c_jx_j + c}$, a $C_G$ sve nejednakosti koje se mogu transformisati u oblik $x_i > \sum_{j \ne i}{d_jx_j + d}$. Tada se iz polaznog skupa izbacuju sve nejednakosti iz $C_L$ i $C_G$, a za svaki par nejednakosti $(C_l, C_g) \in C_L \times C_G$, u novi skup ograničenja se ubacuje nejednakost narednog oblika:
+
+\begin{equation}
+    \label{eq:new_ineq}
+    \sum_{j \ne i}{d_jx_j + d} < \sum_{j \ne i}{c_jx_j + c}
+\end{equation}
+
+Ovako transformisani skup ograničenja ne sadrži promenljivu $x_i$, ali je i dalje ekvizadovoljiv polaznom, što opravdava gustina racionalnih brojeva, tj.~osobina da za svaka dva broja $l$ i $g$ za koje važi $l < g$ postoji i broj $s$ takav da važi $l < s < g$. U specijalnom slučaju da je jedan od skupova $C_L$ i $C_G$ prazan, u kom se ne dodaju nove nejednakosti, već se samo uklanjaju polazne, transformacija je opravdana neograničenošću racionalnih brojeva, tj.~osobinom da za svaki racionalni broj $s$ postoje racionalni brojevi $l$ i $g$ takvi da važi $l < s < g$.
+
+Usled dodavanja $|C_L||C_G|$ novih nejednakosti u ovom koraku, vremenska složenost Furije-Mockinove procedure je eksponencijalna po broju koraka, tj.~po broju promenljivih u skupu ograničenja. Iako postoje različite tehnike za poboljšanje performansi procedure, složenost je, i dalje, eksponencijalna \cite{complexity-estimates-fourier-motzkin}.
+
+Pošto u skupu ograničenja \eqref{eq:example_s_2} nema jednakosti, promenljivu $y$ je potrebno eliminisati primenom koraka eliminacije po nejednakostima. Kako se prva nejednakost može prepisati kao $y > z - 30$, a druga kao $y < -z$, eliminacijom polaznih nejednakosti i transformacijom zadatom nejednakošću \eqref{eq:new_ineq} dobija se novi skup ograničenja:
+
+\begin{equation}
+\begin{gathered}
+    \label{eq:example_s_3}
+    2z < 30 \\
+    z > 14
+\end{gathered}
+\end{equation}
+
+U ograničenjima je preostala samo promenljiva $z$. Ponovom primenom eliminacije promenljive po nejednakostima dobija se trivijalno zadovoljiv (jednočlan) skup ograničenja:
+
+\begin{equation}
+\begin{gathered}
+    \label{eq:example_s_4}
+    0 < 1
+\end{gathered}
+\end{equation}
+
+\subsection{Proširenje do procedure odlučivanja u linearnom fragmentu teorije uređenih polja}
+
+U kontekstu logike prvog reda, skup linearnih ograničenja se može posmatrati i kao njihova konjukcija, pri čemu je svako ograničenje neka atomička formula. Kako se Furije-Mockinovom procedurom eliminišu promenljive iz konjukcije linearnih ograničenja, pri čemu ona ostaje ekvizadovoljiva polaznoj konjukciji, a kvantifikator koji ne vezuje ni jednu promenljivu u formuli logike prvog reda ne utiče na njenu semantiku, ispostavlja se da je Furije-Mockinova procedura primenljiva i kao procedura odlučivanja za određene teorije prvog reda. U nastavku se pretpostavlja da je reč o linearnom fragmentu teorije uređenih polja.
+
+Neka je data proizvoljna rečenica u preneks normalnoj formi (ukoliko nije u preneks normalnoj formi, lako se može dovesti do nje), pri čemu sve njene atomičke potformule predstavljaju linearna ograničenja. Tada se za eliminaciju kvantifikatora u datoj formuli može primeniti algoritam \ref{alg:fm_fol_formula}.
+
+\begin{algorithm}[!ht]
+    \begin{algorithmic}[1]
+        \Function{eliminate\_quantifiers}{Formula $f$}
+            \If {$f$ is quantifier free}
+                \State \Return $f$
+            \EndIf
+            \State \textit{// Let $f$ be $Q_1x_1.Q_2x_2....Q_nx_n.F$}
+            \If {$Q_n$ is $\forall$}
+                \State $f \gets Q_1x_1.Q_2x_2....\neg \exists x_n. \neg F$
+            \EndIf
+            \State \textit{// Transform the base formula $F$ to DNF}
+            \State $f \gets Q_1x_1.Q_2x_2....\exists x_n.DNF(F)$
+            \State \textit{// Let $f$ be $Q_1x_1.Q_2x_2....\exists x_n.C_1 \lor C_2 \lor ... \lor C_k$}
+            \State \textit{// where each $C_i$ is a conjuction of constraints}
+            \For {$i$ from $1$ to $k$}
+                \State \textit{// Eliminate variable $x_n$ in $C_i$ with Fourier-Motzkin}
+                \State $C_i' \gets var\_elim(C_i, x_n)$
+                \State $f \gets Q_1x_1.Q_2x_2....\exists x_n.C_1 \lor ... \lor C_i' \lor ... \lor ... \lor C_k$
+            \EndFor
+            \State \textit{// Remove the existentialn quantifier binding $x_n$}
+            \State $f \gets Q_1x_1.Q_2x_2....Q_{n-1}x_{n-1}.F'$
+            \State \Return $eliminate\_quantifiers(f)$
+        \EndFunction
+    \end{algorithmic}
+    \caption{Eliminacija kvantifikatora Furije-Mockinovom procedurom}
+    \label{alg:fm_fol_formula}
+\end{algorithm}
+
+Po eliminaciji svih promenljivih (a time i kvantifikatora), transformisana formula ostaje ekvizadovoljiva polaznoj, ali se sada trivijalno može interpretirati kao tačna ili netačna. Polazna formula je tada teorema u teoriji uređenih polja ako i samo ako je ovako transformisana formula tačna.
+
+\section{Implementacija}
+\label{sec:implementacija}
+
+Implementacija prethodno opisane Furije-Mockinove procedure javno je dostupna na sledećoj lokaciji: \url{https://github.com/Aca-S/fourier-motzkin}. Procedura je u celosti implementirana u programskom jeziku \texttt{C++}.
+
+\subsection{Organizacija projekta}
+
+Celokupna implementacija se nalazi u direktorijumu \texttt{source/}. Projekat je podeljen na nekoliko glavnih klasa i skup pomoćnih klasa i funkcija. Glavne klase projekta su:
+
+\begin{description}
+    \item[\texttt{Constraint<T>}] --- Generička klasa koja predstavlja jedno linearno ograničenje. U zavisnosti od parametra \texttt{T}, ograničenje može biti definisano u različitim uređenim poljima.
+    \item[\texttt{ConstraintConjuction<T>}] --- Predstavlja konjukciju linearnih ograničenja. Dva glavna javna metoda ove klase su:
+        \begin{description}
+            \item[\texttt{bool is\_satisfiable()}] --- Proverava da li je data konjukcija linearnih ograničenja zadovoljiva.
+            \item[\texttt{void eliminate\_variable(std::size\_t var\_index)}] --- Furije-Mockinovom procedurom eliminiše promenljivu sa zadatim indeksom iz konjukcije linearnih ograničenja.
+        \end{description}
+    \item[\texttt{TheoremProver}] --- Dokazivač teorema u teoriji uređenih polja. Konkretno, svi dokazi se sprovode pod pretpostavkom rada u polju racionalnih brojeva. Glavni metod ove klase je:
+    \begin{description}
+        \item[\texttt{bool is\_theorem(const std::string \&fol\_formula)}] --- Proverava da li je zadata formula logike prvog reda teorema u teoriji uređenih polja. Ukoliko je tokom konstrukcije \texttt{TheoremProver} dokazivača prosleđen izlazni tok (npr.~tok standardnog izlaza), na njemu će se ispisivati postupak dokazivanja.
+    \end{description}
+\end{description}
+
+Pomoćne strukture i funkcije pružaju podršku za predstavljanje apstraktnog sintaksnog stabla formula u logici prvog reda (strukture definisane u okviru \texttt{fol\_ast.hpp} datoteke), parsiranje formula (Klasa \texttt{FOLDriver} definisana u \texttt{fol\_driver.hpp/cpp} i prateći parser i lekser), kao i transformisanje i normalizaciju formula (funkcije definisane u \texttt{fol\_normalization.hpp/cpp}). Dodatno, klasa \texttt{Fraction} pruža podršku za rad sa racionalnim brojevima.
+
+\subsection{Prevođenje projekta i upotreba}
+
+Projekat se može izgraditi pozicioniranjem u \texttt{source} direktorijum i izvršavanjem narednih komandi: \texttt{mkdir build \&\& cd build \&\& cmake .. \&\& make}. Po završetku prevođenja, direktorijum \texttt{build} će sadržati program \texttt{fourier-motzkin} koji se dalje može pokrenuti. Za izgradnju su neophodni \texttt{C++} kompilator sa podrškom za verziju standarda jezika \texttt{C++20}, kao i instalirani paketi za \texttt{GNU Bison} (minimalna verzija 3.2) i \texttt{GNU Flex}.
+
+Izgrađeni program se pokreće bez argumenata komandne linije. Po pokretanju, na standardnom ulazu se očekuje validna formula za koju je ispituje da li je teorema. Prosleđena formula ne mora biti u preneks normalnoj formi --- dokazivač će je sam konvertovati u nju. U slučaju da formula nije rečenica, sve slobodne promenljive u formuli će biti vezane egzistencijalnim kvantifikatorom. Primer upotrebe prikazan je listingom \ref{lst:example_run}.
+
+
+\begin{lstlisting}[basicstyle=\ttfamily\small,captionpos=b,caption={Primer pokretanja \texttt{fourier-motzkin} programa}, label=lst:example_run]
+$ ./fourier-motzkin
+!x.!y.x > 0 & y > 0 => x + y > 0
+========== [PROOF START] ==========
+[FORMULA] !x.!y.x>0 & y>0 => x+y>0
+[CLOSED PRENEX] !x.!y.~x>0 | ~y>0 | x+y>0
+[VARIABLE ELIMINATION]
+    Eliminating universally bound variable "y"
+    Base formula (negated due to universal quantification):
+        ~(~x>0 | ~y>0 | x+y>0)
+    Base formula DNF:
+        x>0 & y>0 & x+y<0 | x>0 & y>0 & x+y=0
+    New base formula (negated due to universal quantification):
+        ~(0+x>0 & 0+x<0 | 0+x>0 & 0-x>0)
+[VARIABLE ELIMINATION]
+    Eliminating universally bound variable "x"
+    Base formula (negated due to universal quantification):
+        ~~(0+x>0 & 0+x<0 | 0+x>0 & 0-x>0)
+    Base formula DNF:
+        0+x>0 & 0+x<0 | 0+x>0 & 0-x>0
+    New base formula (negated due to universal quantification):
+        ~(0<0 | 0<0)
+[QUANTIFIER FREE FORM] ~(0<0 | 0<0)
+[RESULT] Formula is a theorem
+=========== [PROOF END] ===========
+\end{lstlisting}
+
+\section{Zaključak}
+\label{sec:zakljucak}
+
+U radu su predstavljeni osnovni pojmovi i definicije koje su bitne u kontekstu rešavanja problema ograničenja i dokazivanja teorema u teoriji uređenih polja. Nakon toga, dat je detaljan opis Furije-Mockinove procedure za rešavanje konjukcije linearnih ograničenja. Konačno, kao glavni doprinos rada, implementiran je dokazivač teorema u linearnom fragmentu teorije uređenih polja zasnovan na Furije-Mockinovoj proceduri.
+
+Jedan moguć pravac daljeg razvoja je implementacija različitih heuristika za izbor redosleda eliminacije promenljivih iz konjukcije linearnih ograničenja, čime bi se smanjio efekat kombinatorne eksplozije. Kao dodatna mogućnost, mogu se razmotriti i tehnike za izbegavanje generisanja i čuvanja redundantnih ograničenja (ograničenja koja su posledica ostalih ograničenja u konjukciji).
+
+\begin{thebibliography}{100}
+\bibitem{theory_of_linear_and_integer_programming} Schrijver, Alexander, Theory of linear and integer programming. John Wiley \& Sons, Inc., 1986.
+\bibitem{quantifier_elimination_fourier_motzkin} Eaves, B. Curtis and Rothblum, Uriel G., Dines--Fourier--Motzkin quantifier elimination and an application of corresponding transfer principles over ordered fields. Mathematical Programming: Series A and B, Volume 53, Issue 1-3. Springer-Verlag, January 1992.
+\bibitem{complexity-estimates-fourier-motzkin} Rui-Juan Jing and Marc Moreno-Maza and Delaram Talaashrafi, Complexity Estimates for Fourier-Motzkin Elimination, Computer Algebra in Scientific Computing (pp.282-306), 2019.
+\end{thebibliography}
+
+\end{document}
