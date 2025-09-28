@@ -31,12 +31,12 @@ Furije-Mockinova procedura se, kao metod za proveru zadovoljivosti sistema nejed
 
 Furije-Mockinova procedura, u svojoj osnovi, predstavlja metod za proveru zadovoljivosti skupa linearnih ograničenja \cite{theory_of_linear_and_integer_programming}. Međutim, kako je ova procedura zasnovana na eliminaciji promenljivih, ona se može razmatrati i u kontekstu procedure odlučivanja, zasnovane na eliminaciji kvantifikatora, u linearnom fragmentu teorije uređenih polja \cite{quantifier_elimination_fourier_motzkin}.
 
-Ostatak rada je organizovan na sledeći način. Poglavlje \ref{sec:osnove} predstavlja osnovne definicije i pojmove koji će se koristiti u ostatku rada. Poglavlje \ref{sec:opis_metode} daje detaljan opis Furije-Mockinove procedure, kako u kontekstu metoda za proveru zadovoljivosti linearnih ograničenja, tako i u kontekstu njegovog proširenja u proceduru odlučivanja u linearnom fragmentu teorije uređenih polja. Konačno, poglavlje \ref{sec:implementacija} daje pregled implementacije Furije-Mockinove procedure.
+Rad je organizovan na sledeći način. Poglavlje \ref{sec:osnove} predstavlja osnovne definicije i pojmove koji će se koristiti u ostatku rada. Poglavlje \ref{sec:opis_metode} daje detaljan opis Furije-Mockinove procedure, kako u kontekstu metoda za proveru zadovoljivosti linearnih ograničenja, tako i u kontekstu njegovog proširenja u proceduru odlučivanja u linearnom fragmentu teorije uređenih polja. Konačno, poglavlje \ref{sec:implementacija} daje pregled implementacije Furije-Mockinove procedure.
 
 \section{Osnove}
 \label{sec:osnove}
 
-U ovom poglavlju će biti predstavljeni osnovni pojmovi i definicije koje će se koristiti u nastavku rada. U poglavlju \ref{subsec:problemi_ogranicenja} su definisani problemi ograničenja i jedne njihove varijante --- problema zadovoljivosti linearnih ograničenja. Poglavlje \ref{subsec:logika_prvog_reda} opisuje osnovne aspekte logike prvog reda, a poglavlje \ref{subsec:teorija_uredjenih_polja} opisuje jezik logike prvog reda koji će biti korišćen u ostatku rada.
+U ovom poglavlju će biti predstavljeni osnovni pojmovi i definicije koje će se koristiti u nastavku rada. U poglavlju \ref{subsec:problemi_ogranicenja} su definisani pojmovi problema ograničenja i jedne njihove varijante --- problema zadovoljivosti linearnih ograničenja. Poglavlje \ref{subsec:logika_prvog_reda} opisuje osnovne aspekte logike prvog reda, a poglavlje \ref{subsec:teorija_uredjenih_polja} opisuje jezik logike prvog reda koji će biti korišćen u ostatku rada.
 
 \subsection{Problemi ograničenja}
 \label{subsec:problemi_ogranicenja}
@@ -63,7 +63,7 @@ Jedno očigledno rešenje datog skupa nejednakosti je $x = 2$ i $y = \frac{1}{2}
 \subsection{Logika prvog reda}
 \label{subsec:logika_prvog_reda}
 
-Logika prvog reda, ili predikatska logika, formalni je sistem za zadavanje odnosa između određenih logičkih objekata. Uvodeći, između ostalog, egzistencijalne i univerzalne kvantifikatore, kao i funkcijske i predikatske simbole, logika prvog reda je izražajnija od iskazne logike koja je omogućavala samo predstavljanje iskaza i zadavanje jednostavnih odnosa između njih. Glavni aspekti logike prvog reda su njena sintaksa, njena semantika i deduktivni sistemi koji se bave konstrukcijom (tj.~izvođenjem) dokaza na osnovu aksioma (tvrđenja koja uvek važe) u logičkom sistemu.
+Logika prvog reda, ili predikatska logika, formalni je sistem za zadavanje odnosa između logičkih objekata. Uvodeći, između ostalog, egzistencijalne i univerzalne kvantifikatore, kao i funkcijske i predikatske simbole, logika prvog reda je izražajnija od iskazne logike koja je omogućavala samo predstavljanje iskaza i zadavanje jednostavnih odnosa između njih. Glavni aspekti logike prvog reda su njena sintaksa, semantika i deduktivni sistemi koji se bave konstrukcijom (tj.~izvođenjem) dokaza na osnovu aksioma (tvrđenja koja uvek važe) u logičkom sistemu.
 
 \subsubsection{Sintaksa logike prvog reda}
 
@@ -93,7 +93,7 @@ Sintaksa logike prvog reda opisuje strukturu njenih validnih formula, bez razmat
     \end{itemize}
 \end{description}
 
-Prioriteti logičkih veznika su, u opadajućem redosledu, $\lnot, \land, \lor, \implies, \iff$. U implementaciji i ostatku rada, smatra se da je prioritet kvantifikatora manji od bilo kog logičkog veznika.
+Prioriteti logičkih veznika su, u opadajućem redosledu, $\lnot, \land, \lor, \implies, \iff$. U implementaciji i ostatku rada, smatra se da je prioritet kvantifikatora manji od prioriteta bilo kog logičkog veznika.
 
 \subsubsection{Semantika logike prvog reda}
 
@@ -115,13 +115,24 @@ U kontekstu određivanja tačnosti formule, definišu se i naredni pojmovi:
 
 \subsubsection{Deduktivni sistemi}
 
-Uloga deduktivnih sistema je ispitivanje dokazivosti i dokazivanje tvrđenja u datom logičkom sistemu. Za razliku od semantičkog pristupa, u kojem se se zadovoljivost (ili zadovoljivost) dokazuju ili opovrgavaju na osnovu semantike, tj.~interpretacije simbola, dokazivanje u deduktivnim sistemima podrazumeva izvođenje dokaza na osnovu sintaksičkih pravila i skupa polaznih pretpostavki. Osnovni pojmovi koji će se koristiti dalje u radu su:
+Uloga deduktivnih sistema je ispitivanje dokazivosti i dokazivanje tvrđenja u datom logičkom sistemu. Za razliku od semantičkog pristupa, u kojem se se zadovoljivost (ili tautologičnost) dokazuju ili opovrgavaju na osnovu semantike, tj.~interpretacije simbola, dokazivanje u deduktivnim sistemima podrazumeva izvođenje dokaza na osnovu sintaksičkih pravila i skupa polaznih pretpostavki. Osnovni pojmovi pri razmatranju deduktivnih sistema su:
 
 \begin{description}
     \item[Aksoima] --- Tvrđenje za koje se pretpostavlja da uvek važi. Aksiome predstavljaju početne tvrdnje u dokazima u deduktivnim sistemima.
     \item[Teorema] --- Formula $A$ je teorema, u oznaci $\vdash A$, ako i samo ako se za $A$ može konstruisati dokaz samo iz skupa aksioma.
     \item[Teorija] --- Teorija $\mathcal{T}$ nad signaturom $\mathcal{L}$ zadata skupom aksioma $Ax(\mathcal{T})$ je skup svih teorema u odnosu na aksiome $Ax(\mathcal{T})$.
     \item[Model teorije] --- Model teorije $\mathcal{T}$ je signatura $\mathcal{L}$ u kojoj su sve formule iz $Ax(\mathcal{T})$ tačne.
+\end{description}
+
+\subsubsection{Normalne forme}
+
+Primenom određenih sintaksičkih transformacija, formula logike prvog reda se može dovesti do forme koja je ekvivalentna ili ekvizadovoljiva polaznoj, pri čemu ta forma ima neke pogodne osobine. Nad formulama logike prvog reda definišu se naredne normalne forme:
+
+\begin{description}
+    \item[Negaciona normalna forma (NNF)] --- Formula prvog reda je u NNF akko je izgrađena od literala (atomičkih formula ili njihovih negacija) korišćenjem isključivo veznika $\land$ i $\lor$, kvantifikatora $\forall$ i $\exists$ ili je logička konstanta ($\top$ ili $\bot$). Svaka formula se može dovesti do njoj ekvivalentne formule u negacionoj normalnoj formi.
+    \item[Preneks normalna forma] --- Formula prvog reda je u preneks normalnoj formi akko je oblika $Q_1x_1. ... Q_nx_n.F$, pri čemu su $Q_i$ kvantifikatori, a $F$ formula koja ne sadrži kvantifikatore. Svaka formula se može dovesti do njoj ekvivalentne formule u preneks normalnoj formi.
+    \item[Skolemova normalna forma] --- Formula prvog reda je u Skolemovoj normalnoj formi akko je oblika $\forall x_1. ... \forall x_n.F$, pri čemu formula $F$ ne sadrži kvantifikatore. Formula $F$ se u ovom slučaju naziva i \textit{matrica}. Svaka formula se može dovesti do njoj ekvizadovoljive (ne nužno i ekvivalentne) formule u Skolemovoj normalnoj formi.
+    \item[Konjuktivna (KNF) i disjunktivna (DNF) normalna forma] --- O konjuktivnoj i disjunktivnoj normalnoj formi se obično govori u kontekstu nekvantifikovanog dela formule u preneks ili Skolemovoj (matrice u ovom slučaju) normalnoj formi. Nekvantifikovana formula $F$ je u konjuktivnoj normalnoj formi akko je oblika $(l_{11} \lor ... \lor l_{1m_1}) \land ... \land (l_{n1} \lor ... \lor l_{nm_n})$, pri čemu su $l_i$ literali. Analogno, nekvantifikovana formula je u disjunktivnoj normalnoj formi akko je oblika $(l_{11} \land ... \land l_{1m_1}) \lor ... \lor (l_{n1} \land ... \land l_{nm_n})$.
 \end{description}
 
 \subsection{Jezik logike prvog reda nad linearnim fragmentom teorije uređenih polja}
@@ -146,14 +157,14 @@ U nastavku poglavlja će biti opisani osnovni koraci Furije-Mockinove procedure,
 
 \subsection{Eliminacija promenljive po jednakosti}
 
-Eliminacija promenljive $x_i$ po jednakosti podrazumeva da se u skupu ograničenja nalazi ograničenje oblika $... + a_ix_i + ... = b$, $a_i \ne 0$. Tada se promenljiva $x_i$ može izraziti preko ostalih promenljivih koje učestvuju u datoj jednakosti:
+Eliminacija promenljive $x_i$ po jednakosti podrazumeva da se u skupu ograničenja nalazi ograničenje oblika $a_1x_1 + ... + a_ix_i + ... + a_nx_n= b$, $a_i \ne 0$. Tada se promenljiva $x_i$ može izraziti preko ostalih promenljivih koje učestvuju u datoj jednakosti:
 
 \begin{equation}
     \label{eq:xi_equality}
     x_i = \sum_{j \ne i}{c_jx_j + c}
 \end{equation}
 
-Zbog aksioma jednakosti, opravdano je zameniti sva pojavljivanja promenljive $x_i$ u skupu ograničenja sa desnom stranom jednakosti \eqref{eq:xi_equality}, a da pritom skupovi ograničenja ostanu ekvizadovoljivi. Ukoliko je transformisani skup (sa manje promenljivih) zadovoljiv, onda se vrednost promenljive $x_i$ lako može izračunati na osnovu jednakosti \eqref{eq:xi_equality}. Polazno ograničenje jednakosti, iz koje je dobijena jednakost \eqref{eq:xi_equality}, se onda može eliminisati iz skupa ograničenja.
+Zbog aksioma jednakosti (koje važe u polju racionalnih brojeva), opravdano je zameniti sva pojavljivanja promenljive $x_i$ u skupu ograničenja sa desnom stranom jednakosti \eqref{eq:xi_equality}, a da pritom skupovi ograničenja ostanu ekvizadovoljivi. Ukoliko je transformisani skup (sa manje promenljivih) zadovoljiv, onda se vrednost promenljive $x_i$ lako može izračunati na osnovu jednakosti \eqref{eq:xi_equality}. Polazno ograničenje jednakosti, iz koje je dobijena jednakost \eqref{eq:xi_equality}, se onda može eliminisati iz skupa ograničenja.
 
 U nastavku sledi primer izvršavanja ovog koraka. Neka je dat naredni skup linearnih ograničenja:
 
@@ -188,7 +199,7 @@ Ukoliko skup ograničenja ne sadrži ni jednu jednakost u kojoj je koeficijent u
     \sum_{j \ne i}{d_jx_j + d} < \sum_{j \ne i}{c_jx_j + c}
 \end{equation}
 
-Ovako transformisani skup ograničenja ne sadrži promenljivu $x_i$, ali je i dalje ekvizadovoljiv polaznom, što opravdava gustina racionalnih brojeva, tj.~osobina da za svaka dva broja $l$ i $g$ za koje važi $l < g$ postoji i broj $s$ takav da važi $l < s < g$. U specijalnom slučaju da je jedan od skupova $C_L$ i $C_G$ prazan, u kom se ne dodaju nove nejednakosti, već se samo uklanjaju polazne, transformacija je opravdana neograničenošću racionalnih brojeva, tj.~osobinom da za svaki racionalni broj $s$ postoje racionalni brojevi $l$ i $g$ takvi da važi $l < s < g$.
+Ovako transformisani skup ograničenja ne sadrži promenljivu $x_i$, ali je i dalje ekvizadovoljiv polaznom, što opravdava gustina racionalnih brojeva, tj.~osobina da za svaka dva broja $l$ i $g$, za koje važi $l < g$, postoji i broj $s$ takav da važi $l < s < g$. U specijalnom slučaju da je jedan od skupova $C_L$ i $C_G$ prazan, u kom se ne dodaju nove nejednakosti, već se samo uklanjaju polazne, transformacija je opravdana neograničenošću racionalnih brojeva, tj.~osobinom da za svaki racionalni broj $s$ postoje racionalni brojevi $l$ i $g$ takvi da važi $l < s < g$.
 
 Usled dodavanja $|C_L||C_G|$ novih nejednakosti u ovom koraku, vremenska složenost Furije-Mockinove procedure je eksponencijalna po broju koraka, tj.~po broju promenljivih u skupu ograničenja. Iako postoje različite tehnike za poboljšanje performansi procedure, složenost je, i dalje, eksponencijalna \cite{complexity-estimates-fourier-motzkin}.
 
@@ -227,7 +238,7 @@ Neka je data proizvoljna rečenica u preneks normalnoj formi (ukoliko nije u pre
             \If {$Q_n$ is $\forall$}
                 \State $f \gets Q_1x_1.Q_2x_2....\neg \exists x_n. \neg F$
             \EndIf
-            \State \textit{// Transform the base formula $F$ to DNF}
+            \State \textit{// Transform the sub-formula $F$ to DNF}
             \State $f \gets Q_1x_1.Q_2x_2....\exists x_n.DNF(F)$
             \State \textit{// Let $f$ be $Q_1x_1.Q_2x_2....\exists x_n.C_1 \lor C_2 \lor ... \lor C_k$}
             \State \textit{// where each $C_i$ is a conjuction of constraints}
@@ -283,7 +294,7 @@ $ ./fourier-motzkin
 !x.!y.x > 0 & y > 0 => x + y > 0
 ========== [PROOF START] ==========
 [FORMULA] !x.!y.x>0 & y>0 => x+y>0
-[CLOSED PRENEX] !x.!y.~x>0 | ~y>0 | x+y>0
+[CLOSED prenex] !x.!y.~x>0 | ~y>0 | x+y>0
 [VARIABLE ELIMINATION]
     Eliminating universally bound variable "y"
     Base formula (negated due to universal quantification):
